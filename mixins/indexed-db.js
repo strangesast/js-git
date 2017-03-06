@@ -123,7 +123,7 @@ function loadAs(type, hash, callback) {
 }
 
 function loadRaw(hash, callback) {
-  return new Promise(function (resolve, reject) => {
+  return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function (err, ...res) {
         return err ? reject(err) : resolve(...res);
