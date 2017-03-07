@@ -71,13 +71,8 @@ function saveAs(type, body, forcedHash) {
     let entry = { hash: hash, type: type, body: body };
     let request = store.put(entry);
 
-    request.onsuccess = () => {
-      resolve({ hash, body });
-    };
-
-    request.onerror = (evt) => {
-      reject(new Error(evt.value));
-    };
+    request.onsuccess = () => resolve(hash);
+    request.onerror = (evt) => reject(evt.target.error);
   });
 }
 
