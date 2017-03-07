@@ -16,7 +16,7 @@ function init(name, version, callback) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function (err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       };
     }
 
@@ -77,7 +77,7 @@ function saveAs(type, body, callback, forcedHash) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function (err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       }
     }
     var hash;
@@ -107,7 +107,7 @@ function loadAs(type, hash, callback) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function(err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       }
     }
 
@@ -126,7 +126,7 @@ function loadRaw(hash, callback) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function (err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       }
     }
 
@@ -150,7 +150,7 @@ function hasHash(hash, callback) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function (err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       }
     }
 
@@ -165,7 +165,7 @@ function readRef(ref, callback) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function(err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       }
     }
 
@@ -190,7 +190,7 @@ function updateRef(ref, hash, callback) {
   return new Promise(function (resolve, reject) {
     if (!callback) {
       callback = function (err, ...res) {
-        return err ? reject(err) : resolve(...res);
+        return err ? reject(err) : resolve(res);
       }
     }
 
