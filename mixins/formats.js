@@ -13,7 +13,7 @@ module.exports = function (repo) {
     var realType = type === "text" ? "blob":
                    type === "array" ? "tree" : type;
     return loadAs.call(repo, realType, hash).then(body => {
-      if (body === undefined) return callback(err);
+      if (body === undefined) throw new TypeError('No object with that hash');
       if (type === "text") body = bodec.toUnicode(body);
       if (type === "array") body = toArray(body);
       return body;
