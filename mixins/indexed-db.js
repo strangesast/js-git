@@ -83,6 +83,7 @@ function saveAs(type, body, forcedHash) {
 
 async function loadAs(type, hash) {
   let entry = await loadRaw(hash);
+  if (!entry) return null;
   if (type !== entry.type) {
     throw new TypeError('Type mismatch');
   }
