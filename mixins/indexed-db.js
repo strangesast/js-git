@@ -10,6 +10,7 @@ mixin.init = init;
 
 mixin.loadAs = loadAs;
 mixin.saveAs = saveAs;
+mixin.loadRaw = loadRaw;
 module.exports = mixin;
 
 function init(name, version) {
@@ -30,10 +31,11 @@ function init(name, version) {
         reject(evt.target.error);
       };
 
-      if (db.objectStoreNames.contains('objects')) {
+      let storeNames = [].slice.call(db.objectStoreNames);
+      if (storeNames.indexOf('objects') != -1) {
         db.deleteObjectStore('objects');
       }
-      if (db.objectStoreNames.contains('refs')) {
+      if (storeNames.indexOf('refs') != -1) {
         db.deleteObjectStore('refs');
       }
 
@@ -52,6 +54,7 @@ function mixin(repo, prefix) {
   repo.refPrefix = prefix;
   repo.saveAs = saveAs;
   repo.loadAs = loadAs;
+  repo.loadRaw = loadRaw;
   repo.readRef = readRef;
   repo.updateRef = updateRef;
   repo.hasHash = hasHash;
