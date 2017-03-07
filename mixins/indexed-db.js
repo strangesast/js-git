@@ -13,9 +13,9 @@ mixin.saveAs = saveAs;
 module.exports = mixin;
 
 function init(name, version, callback) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function (err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       };
     }
@@ -24,7 +24,7 @@ function init(name, version, callback) {
     var request = indexedDB.open(name, version);
 
     // We can only create Object stores in a versionchange transaction.
-    request.onupgradeneeded = function(evt) {
+    request.onupgradeneeded = (evt) => {
       var db = evt.target.result;
 
       if (evt.dataLoss && evt.dataLoss !== "none") {
@@ -32,7 +32,7 @@ function init(name, version, callback) {
       }
 
       // A versionchange transaction is started automatically.
-      evt.target.transaction.onerror = function (evt) {
+      evt.target.transaction.onerror = (evt) => {
         callback(evt.target.error, null);
       };
 
@@ -47,12 +47,12 @@ function init(name, version, callback) {
       db.createObjectStore("refs", {keyPath: "path"});
     };
 
-    request.onsuccess = function (evt) {
+    request.onsuccess = (evt) => {
       db = evt.target.result;
       callback(null, db);
     };
 
-    request.onerror = function (evt) {
+    request.onerror = (evt) => {
       callback(evt.target.error, null);
     }
   });
@@ -74,9 +74,9 @@ function onError(evt) {
 }
 
 function saveAs(type, body, callback, forcedHash) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function (err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       }
     }
@@ -92,26 +92,26 @@ function saveAs(type, body, callback, forcedHash) {
     var entry = { hash: hash, type: type, body: body };
     var request = store.put(entry);
 
-    request.onsuccess = function() {
+    request.onsuccess = () => {
       // console.warn("SAVE", type, hash);
       callback(null, hash, body);
     };
 
-    request.onerror = function(evt) {
+    request.onerror = (evt) => {
       callback(new Error(evt.value));
     };
   });
 }
 
 function loadAs(type, hash, callback) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function(err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       }
     }
 
-    loadRaw(hash, function (err, entry) {
+    loadRaw(hash, (err, entry) => {
       if (!entry) return callback(err);
       if (type !== entry.type) {
         return callback(new TypeError("Type mismatch"));
@@ -123,9 +123,9 @@ function loadAs(type, hash, callback) {
 }
 
 function loadRaw(hash, callback) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function (err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       }
     }
@@ -134,27 +134,27 @@ function loadRaw(hash, callback) {
     var store = trans.objectStore("objects");
     var request = store.get(hash);
 
-    request.onsuccess = function(evt) {
+    request.onsuccess = (evt) => {
       var entry = evt.target.result;
       if (!entry) return callback();
       return callback(null, entry);
     };
 
-    request.onerror = function(evt) {
+    request.onerror = (evt) => {
       callback(new Error(evt.value));
     };
   });
 }
 
 function hasHash(hash, callback) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function (err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       }
     }
 
-    loadRaw(hash, function (err, body) {
+    loadRaw(hash, (err, body) => {
       if (err) return callback(err);
       return callback(null, !!body);
     });
@@ -162,9 +162,9 @@ function hasHash(hash, callback) {
 }
 
 function readRef(ref, callback) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function(err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       }
     }
@@ -174,22 +174,22 @@ function readRef(ref, callback) {
     var store = trans.objectStore("refs");
     var request = store.get(key);
 
-    request.onsuccess = function(evt) {
+    request.onsuccess = (evt) => {
       var entry = evt.target.result;
       if (!entry) return callback();
       callback(null, entry.hash);
     };
 
-    request.onerror = function(evt) {
+    request.onerror = (evt) => {
       callback(new Error(evt.value));
     };
   });
 }
 
 function updateRef(ref, hash, callback) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     if (!callback) {
-      callback = function (err, ...res) {
+      callback = (err, ...res) => {
         return err ? reject(err) : resolve(res);
       }
     }
@@ -200,11 +200,11 @@ function updateRef(ref, hash, callback) {
     var entry = { path: key, hash: hash };
     var request = store.put(entry);
 
-    request.onsuccess = function() {
+    request.onsuccess = () => {
       callback();
     };
 
-    request.onerror = function(evt) {
+    request.onerror = (evt) => {
       callback(new Error(evt.value));
     };
   });
