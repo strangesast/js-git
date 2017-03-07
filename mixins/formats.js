@@ -9,44 +9,38 @@ module.exports = function (repo) {
   var saveAs = repo.saveAs;
   repo.saveAs = newSaveAs;
 
-  function newLoadAs(type, hash, callback) {
+  function newLoadAs(type, hash) {
     var realType = type === "text" ? "blob":
                    type === "array" ? "tree" : type;
-    return loadAs.call(repo, realType, hash, onLoad);
-
-    function onLoad(err, body, hash) {
+    return loadAs.call(repo, realType, hash).then(body => {
       if (body === undefined) return callback(err);
       if (type === "text") body = bodec.toUnicode(body);
       if (type === "array") body = toArray(body);
-      return callback(err, body, hash);
-    }
-  }
+      return body;
+    });
+  };
 
-  function newSaveAs(type, body, callback) {
+  function newSaveAs(type, body) {
     type = type === "text" ? "blob":
            type === "array" ? "tree" : type;
     if (type === "blob") {
       if (typeof body === "string") {
         body = bodec.fromUnicode(body);
       }
-    }
-    else if (type === "tree") {
+    } else if (type === "tree") {
       body = normalizeTree(body);
-    }
-    else if (type === "commit") {
+    } else if (type === "commit") {
       body = normalizeCommit(body);
-    }
-    else if (type === "tag") {
+    } else if (type === "tag") {
       body = normalizeTag(body);
     }
-    return saveAs.call(repo, type, body, callback);
-  }
-
+    return saveAs.call(repo, type, body);
+  };
 };
 
 function toArray(tree) {
   return Object.keys(tree).map(treeMap, tree);
-}
+};
 
 function normalizeTree(body) {
   var type = body && typeof body;
@@ -76,7 +70,7 @@ function normalizeTree(body) {
     }
   }
   return tree;
-}
+};
 
 function normalizeCommit(body) {
   if (!body || typeof body !== "object") {
@@ -98,7 +92,7 @@ function normalizeCommit(body) {
     committer: committer,
     message: body.message
   };
-}
+};
 
 function normalizeTag(body) {
   if (!body || typeof body !== "object") {
@@ -114,7 +108,7 @@ function normalizeTag(body) {
     tagger: normalizePerson(body.tagger),
     message: body.message
   };
-}
+};
 
 function normalizePerson(person) {
   if (!person || typeof person !== "object") {
@@ -128,4 +122,4 @@ function normalizePerson(person) {
     email: person.email,
     date: person.date || new Date()
   };
-}
+};
