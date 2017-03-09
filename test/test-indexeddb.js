@@ -79,16 +79,24 @@ describe('indexeddb mixin', () => {
     }));
   });
 
-  /*
   describe('loadRaw', () => {
-    it('should load byte array', async() => {
-      let data = await repo.loadRaw(blobHash);
-      let obj = codec.deframe(data.data, true);
-      assert.equal(obj.type, 'blob', 'Wrong type')
-      assert.equal(bodec.toUnicode(obj.body), bodec.toUnicode(blob), 'Wrong body');
+    let hashes = [];
+    before(async() => {
+      for( let i=0; i < 5; i++) {
+        hashes.push(await repo.saveAs('blob', `Test ${ i }\n`));
+      }
     });
+    it('should load byte array', async() => {
+      let data = await repo.loadRaw(hashes[0]);
+      assert.equal('Test 0\n', new Buffer(data.body.data).toString('utf8'));
+    });
+    /* the following isn't implemented in indexeddb-js
+    it('should load multiple byte arrays', async() => {
+      let data = await repo.loadManyRaw(hashes);
+      assert.equal(hashes.length, data.length);
+    });
+    */
   })
-  */
 
   describe('update/readRef', () => {
     it('should add ref for hash', async() => {

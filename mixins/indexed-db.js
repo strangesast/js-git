@@ -9,6 +9,7 @@ var db;
 mixin.init = init;
 
 mixin.loadAs = loadAs;
+mixin.loadManyRaw = loadManyRaw;
 mixin.saveAs = saveAs;
 mixin.loadRaw = loadRaw;
 module.exports = mixin;
@@ -55,6 +56,7 @@ function mixin(repo, prefix) {
   repo.saveAs = saveAs;
   repo.loadAs = loadAs;
   repo.loadRaw = loadRaw;
+  repo.loadManyRaw = loadManyRaw;
   repo.readRef = readRef;
   repo.updateRef = updateRef;
   repo.hasHash = hasHash;
@@ -85,7 +87,7 @@ async function loadAs(type, hash) {
   if (type !== entry.type) {
     throw new TypeError('Type mismatch');
   }
-  return entry && entry.body;
+  return entry.body;
 }
 
 async function loadRaw(hash) {
@@ -95,6 +97,44 @@ async function loadRaw(hash) {
     let request = store.get(hash);
 
     request.onsuccess = (evt) => resolve(evt.target.result);
+    request.onerror = (evt) => reject(evt.target.error);
+  });
+}
+
+function comparer(a, b) {
+  return a < b ? -1 : a > b ? -1 : 0;
+}
+
+async function loadManyRaw(hashes) {
+  return new Promise((resolve, reject) => {
+    // algorithm by dfahlander
+    let set = hashes.slice().sort(comparer);
+    let request = db.transaction(['objects'], 'readonly')
+      .objectStore('objects')
+      .openCursor();
+    let i = 0;
+    let results = [];
+
+    request.onsuccess = (evt) => {
+      let cursor = evt.target.result;
+      if (!cursor) return resolve(results);
+
+      let key = cursor.key;
+
+      while (key > set[i]) {
+        ++i;
+
+        if (i === set.length) return resolve(results);
+      }
+
+      if (key === set[i]) {
+        results.push(cursor.value);
+        cursor.continue();
+
+      } else {
+        cursor.continue(set[i]);
+      }
+    };
     request.onerror = (evt) => reject(evt.target.error);
   });
 }
