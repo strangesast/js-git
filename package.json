@@ -16,12 +16,16 @@
     "url": "https://github.com/creationix/js-git/issues"
   },
   "scripts": {
-    "test": "ls test/test-* | xargs -n1 node"
+    "test": "mocha --recursive"
   },
   "dependencies": {
     "bodec": "^0.1.0",
     "culvert": "^0.1.2",
     "git-sha1": "^0.1.2",
     "pako": "^0.2.5"
+  },
+  "devDependencies": {
+    "indexeddb-js": "0.0.14",
+    "mocha": "^3.2.0"
   }
 }
