@@ -20,7 +20,6 @@ module.exports = function (repo) {
       let prev = tree;
       for (let dirname of path) {
         let ob = prev[dirname];
-        console.log('dirname', dirname, 'ob', ob);
         if (ob && ob.mode !== modes.tree) throw new Error('file not folder');
         if (ob && ob.mode && ob.hash) {
           prev = prev[dirname] = await repo.loadAs('tree', ob.hash);
@@ -44,8 +43,6 @@ module.exports = function (repo) {
       }
     }
 
-    console.log('tree', tree);
-
     return collapse(tree, blobs)
   }
 
@@ -55,7 +52,6 @@ module.exports = function (repo) {
       if (val.mode && val.hash) continue;
       root[name] = typeof val == 'string' ? await blobs[val] : { hash: await collapse(root[name], blobs), mode: modes.tree };
     }
-    console.log('root', root);
     return repo.saveAs('tree', root);
   }
 };

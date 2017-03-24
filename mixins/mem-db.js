@@ -1,6 +1,7 @@
 "use strict";
 
-var defer = require('../lib/defer.js');
+//var defer = require('../lib/defer.js');
+// ↑ may be better / different than promises (async function)
 var codec = require('../lib/object-codec.js');
 var sha1 = require('git-sha1');
 
@@ -19,77 +20,59 @@ function mixin(repo) {
   repo.readRef = readRef;
   repo.updateRef = updateRef;
   repo.listRefs = listRefs;
+  repo.enumerateObjects = enumerateObjects;
 
-  function readRef(ref, callback) {
-    return makeAsync(function () {
-      return refs[ref];
-    }, callback);
+  async function readRef(ref) {
+    return refs[ref];
   }
 
-  function listRefs(prefix, callback) {
-    return makeAsync(function () {
-      var regex = prefix && new RegExp("^" + prefix + "[/$]");
-      var out = {};
-      Object.keys(refs).forEach(function (name) {
-        if (regex && !regex.test(name)) return;
+  async function listRefs(prefix) {
+    let out = {};
+    for (let name of Object.keys(refs)) {
+      if (name.startsWith(prefix + '/')) {
         out[name] = refs[name];
-      });
-      return out;
-    }, callback);
+      }
+    }
+    return out;
   }
 
-  function updateRef(ref, hash, callback) {
-    return makeAsync(function () {
-      return (refs[ref] = hash);
-    }, callback);
+  async function updateRef(ref, hash) {
+    return refs[ref] = hash;
   }
 
-  function hasHash(hash, callback) {
-    return makeAsync(function () {
-      if (!isHash.test(hash)) hash = refs[hash];
-      return hash in objects;
-    }, callback);
+  async function hasHash(hash) {
+    if (!isHash.test(hash)) hash = refs[hash];
+    return hash in objects;
   }
 
-  function saveAs(type, body, callback) {
-    return makeAsync(function () {
-      var buffer = codec.frame({type:type,body:body});
-      var hash = sha1(buffer);
-      objects[hash] = buffer;
-      return hash;
-    }, callback);
+  async function saveAs(type, body) {
+    let buffer = codec.frame({ type, body });
+    let hash = sha1(buffer);
+    objects[hash] = buffer;
+    return hash;
   }
 
-  function saveRaw(hash, buffer, callback) {
-    return makeAsync(function () {
-      objects[hash] = buffer;
-    }, callback);
+  async function saveRaw(hash, buffer) {
+    return (objects[hash] = buffer) && hash;
   }
 
-  function loadAs(type, hash, callback) {
-    return makeAsync(function () {
-      if (!isHash.test(hash)) hash = refs[hash];
-      var buffer = objects[hash];
-      if (!buffer) return [];
-      var obj = codec.deframe(buffer, true);
-      if (obj.type !== type) throw new TypeError("Type mismatch");
-      return obj.body;
-    }, callback);
+  async function loadAs(type, hash) {
+    if (!isHash.test(hash)) hash = refs[hash];
+    let buffer = objects[hash];
+    if (!buffer) return [];
+    let obj = codec.deframe(buffer, true);
+    if (obj.type !== type) throw new TypeError("Type mismatch");
+    return obj.body;
   }
 
-  function loadRaw(hash, callback) {
-    return makeAsync(function () {
-      return objects[hash];
-    }, callback);
+  async function loadRaw(hash) {
+    return objects[hash];
   }
-}
 
-function makeAsync(fn, callback) {
-  if (!callback) return makeAsync.bind(null, fn);
-  defer(function () {
-    var out;
-    try { out = fn(); }
-    catch (err) { return callback(err); }
-    callback(null, out);
-  });
+  function* enumerateObjects() {
+    let hashes = Object.keys(objects);
+    for (let hash of hashes) {
+      yield { hash, content: objects[hash] };
+    }
+  }
 }

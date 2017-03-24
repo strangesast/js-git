@@ -177,7 +177,6 @@ function values(object) {
   return out;
 }
 
-
 function applyParser(stream, parser, onError) {
   var extra = makeChannel();
   extra.put = parser(extra.put);
