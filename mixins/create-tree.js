@@ -20,7 +20,6 @@ module.exports = function (repo) {
       let prev = tree;
       for (let dirname of path) {
         let ob = prev[dirname];
-        if (ob && ob.mode !== modes.tree) throw new Error('file not folder');
         if (ob && ob.mode && ob.hash) {
           prev = prev[dirname] = await repo.loadAs('tree', ob.hash);
         } else if (dirname != '') {
