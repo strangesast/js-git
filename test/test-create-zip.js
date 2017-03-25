@@ -6,7 +6,7 @@ var formats = require('../mixins/formats.js');
 var createTree = require('../mixins/create-tree.js');
 var createZip = require('../mixins/create-zip.js');
 var sha1 = require('git-sha1');
-var pako = require('pako');
+var { deflate } = require('pako');
 
 var fs = require('fs');
 
@@ -30,7 +30,7 @@ describe('zip mixin', function() {
     memdb(repo);
     formats(repo);
     createTree(repo);
-    zip(repo);
+    createZip(repo);
 
     treeHash = await repo.createTree(EXAMPLE_TREE);
   });
@@ -64,7 +64,7 @@ describe('zip mixin', function() {
 
       let opts = { binary: true };
       for (let { hash, content } of repo.enumerateObjects()) {
-        zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), pako.deflate(content), opts);
+        zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), deflate(content), opts);
       };
 
       zip.file('.git/refs/heads/master', commitHash + '\n', opts);
