@@ -8,8 +8,6 @@ var createZip = require('../mixins/create-zip.js');
 var sha1 = require('git-sha1');
 var { deflate } = require('pako');
 
-var fs = require('fs');
-
 const EXAMPLE_TREE = {
   "www/index.html": {
     mode: modes.file,
@@ -72,7 +70,7 @@ describe('zip mixin', function() {
 
 
       let content = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-      fs.writeFile('../out/out.zip', content, (err) => console.log('err', err));
+      //fs.writeFile('../out/out.zip', content, (err) => console.log('err', err));
     });
   });
 

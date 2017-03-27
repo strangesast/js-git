@@ -1,9 +1,11 @@
 var assert = require('assert');
+/*
 var indexeddbjs = require('indexeddb-js');
 var sqlite3 = require('sqlite3');
 var engine = new sqlite3.Database(':memory:');
 var scope = indexeddbjs.makeScope('sqlite3', engine);
 indexedDB = scope.indexedDB;
+*/
 var bodec = require('bodec');
 
 var idb =        require('../mixins/indexed-db.js');
@@ -46,7 +48,7 @@ describe('create-tree mixin', () => {
       assert(folder[fname], 'failed to create file in folder');
 
       let content = await repo.loadAs(modes.toType(folder[fname].mode), folder[fname].hash);
-      assert.equal(TEST_ENTRY.content, String.fromCharCode(...content.data), 'blob saved incorrectly');
+      assert.equal(TEST_ENTRY.content, String.fromCharCode(...content), 'blob saved incorrectly');
     });
   });
 

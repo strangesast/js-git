@@ -1,9 +1,15 @@
 var assert = require('assert');
-var indexeddbjs = require('indexeddb-js');
-var sqlite3 = require('sqlite3');
-var engine = new sqlite3.Database(':memory:');
-var scope = indexeddbjs.makeScope('sqlite3', engine);
-indexedDB = scope.indexedDB;
+
+/*
+if (!indexedDB) {
+  var indexeddbjs = require('indexeddb-js');
+  var sqlite3 = require('sqlite3');
+  var engine = new sqlite3.Database(':memory:');
+  var scope = indexeddbjs.makeScope('sqlite3', engine);
+
+  indexedDB = scope.indexedDB;
+}
+*/
 
 var bodec = require('bodec');
 var codec = require('../lib/object-codec.js');
@@ -88,7 +94,7 @@ describe('indexeddb mixin', () => {
     });
     it('should load byte array', async() => {
       let data = await repo.loadRaw(hashes[0]);
-      assert.equal('Test 0\n', new Buffer(data.body.data).toString('utf8'));
+      assert.equal('Test 0\n', String.fromCharCode(...data.body));
     });
     /* the following isn't implemented in indexeddb-js
     it('should load multiple byte arrays', async() => {
