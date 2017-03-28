@@ -50,8 +50,6 @@ describe('zip mixin', function() {
 
       await log(repo, tree);
 
-      console.log('raw', (await repo.loadRaw(commitHash)).toString());
-
       let arr = await flatten(repo, treeHash);
 
       let zip = repo.createZip();
@@ -68,8 +66,21 @@ describe('zip mixin', function() {
       zip.file('.git/refs/heads/master', commitHash + '\n', opts);
       zip.file('.git/HEAD', 'ref: refs/heads/master\n', opts);
 
+      createIndex(arr);
 
-      let content = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+      let content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+
+      let url = window.URL.createObjectURL(content);
+
+      /*
+      let link = window.document.createElement('a');
+      link.download = 'test.zip';
+      link.textContent = 'Download';
+      link.href = url;
+      window.document.body.appendChild(link);
+      link.click();
+      */
+
       //fs.writeFile('../out/out.zip', content, (err) => console.log('err', err));
     });
   });
@@ -78,6 +89,35 @@ describe('zip mixin', function() {
     console.log('finishing...');
   });
 });
+
+
+function createIndex(arr) {
+  let header = Array.from('DIRC').concat(3, arr.length);
+
+  let entries = arr.map(({ path, value }) => {
+    let name = path.slice(-1)[0];
+    let mode = 8 << 12 | 420;
+    let size = byteSize(value);
+    let sha = sha1(value);
+
+    let piece = [0, 0, 0, 0, 0, 0, mode, 0, 0, size];
+    for (let i=0; i < sha.length; i+=5) {
+      piece.push(parseInt(sha.substring(i, i+5), 16))
+    }
+
+    piece.push((1 << 16 | Math.min(name.length, 4095)) << 16);
+
+    console.log(piece);
+
+    return name;
+  });
+
+
+}
+
+function byteSize(str) {
+  return encodeURI(str).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length - 1;
+}
 
 /*
 function indexByteArray(arr) {
@@ -134,7 +174,7 @@ async function flatten(repo, rootHash, prefix = []) {
     if (mode === modes.tree) {
       result.push(...await flatten(repo, hash, prefix.concat(name)));
     } else if (mode === modes.blob) {
-      let value = (await repo.loadAs('blob', hash)).toString();
+      let value = await repo.loadAs('text', hash);
       result.push({ path: prefix.concat(name), value });
     }
   }
