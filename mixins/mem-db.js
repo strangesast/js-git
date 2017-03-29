@@ -69,10 +69,8 @@ function mixin(repo) {
     return objects[hash];
   }
 
-  function* enumerateObjects() {
+  async function enumerateObjects() {
     let hashes = Object.keys(objects);
-    for (let hash of hashes) {
-      yield { hash, content: objects[hash] };
-    }
+    return hashes.map(hash => ({ hash, content: objects[hash] }));
   }
 }

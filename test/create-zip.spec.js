@@ -1,7 +1,9 @@
 var assert = require('assert');
 
+var codec = require('../lib/object-codec.js');
 var modes = require('../lib/modes.js');
-var memdb = require('../mixins/mem-db.js');
+//var memdb = require('../mixins/mem-db.js');
+var idb = require('../mixins/indexed-db.js');
 var formats = require('../mixins/formats.js');
 var createTree = require('../mixins/create-tree.js');
 var createZip = require('../mixins/create-zip.js');
@@ -25,7 +27,9 @@ describe('zip mixin', function() {
   var treeHash;
 
   before(async() => {
-    memdb(repo);
+    //memdb(repo);
+    await idb.init('test', 1);
+    idb(repo, 'testing');
     formats(repo);
     createTree(repo);
     createZip(repo);
@@ -52,21 +56,21 @@ describe('zip mixin', function() {
 
       let arr = await flatten(repo, treeHash);
 
-      let zip = repo.createZip();
+      let zip = await repo.zip.create();
 
       for (let { value, path } of arr) {
         zip.file(path.join('/'), value);
       }
 
       let opts = { binary: true };
-      for (let { hash, content } of repo.enumerateObjects()) {
+      for (let { hash, content } of await repo.enumerateObjects()) {
         zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), deflate(content), opts);
       };
 
       zip.file('.git/refs/heads/master', commitHash + '\n', opts);
       zip.file('.git/HEAD', 'ref: refs/heads/master\n', opts);
 
-      createIndex(arr);
+      zip.file('.git/index', createIndex(arr), opts);
 
       let content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 
@@ -90,66 +94,66 @@ describe('zip mixin', function() {
   });
 });
 
+function byPath(a, b) {
+  return a.path > b.path ? 1 : b.path > a.path ? -1 : 0;
+} 
+function createIndex(files) {
+  let header = new Uint8Array(12);
+  header.set('DIRC'.split('').map(c => c.charCodeAt(0)));
+  header.set([3], 7);
+  header.set(b32tob8(files.length), 8);
 
-function createIndex(arr) {
-  let header = Array.from('DIRC').concat(3, arr.length);
+  files.sort(byPath);
 
-  let entries = arr.map(({ path, value }) => {
-    let name = path.slice(-1)[0];
-    let mode = 8 << 12 | 420;
+  let res = files.reduce((accum, {path, value}) => {
+    let stringPath = path.join('/').split('');
+    let length = 64 + stringPath.length;
+    length += 8 - (length % 8);
+    let ret = new Uint8Array(length);
+    let mode = (parseInt('1000', 2) << 12) | parseInt('0644', 8);
+    ret.set(b32tob8(mode), 24);
+
     let size = byteSize(value);
-    let sha = sha1(value);
+    ret.set(b32tob8(size), 36);
 
-    let piece = [0, 0, 0, 0, 0, 0, mode, 0, 0, size];
-    for (let i=0; i < sha.length; i+=5) {
-      piece.push(parseInt(sha.substring(i, i+5), 16))
-    }
+    let sha = sha1arr(`blob ${value.length}\0${value}`);
+    ret.set(sha, 40);
 
-    piece.push((1 << 16 | Math.min(name.length, 4095)) << 16);
+    let flags = (0x4000 | Math.min(stringPath.length, 0xFFF)) << 16;
+    ret.set(b32tob8(flags), 60);
 
-    console.log(piece);
+    let pathbytes = stringPath
+      .map(c => c.charCodeAt(0))
+    ret.set(pathbytes, 64);
 
-    return name;
-  });
+    return accum.concat(Array.from(ret));
+  }, Array.from(header));
 
+  let sha = sha1(res);
+  let shabytes = [];
+  for (let i=0; i <sha.length; i+=2) {
+    shabytes.push(parseInt(sha.substring(i, i+2), 16));
+  }
+  res.push(...shabytes);
+  return Uint8Array.from(res);
+}
 
+function sha1arr(val) {
+  let sha = sha1(val);
+  let ret = [];
+  for (let i=0; i < sha.length; i+=2) {
+    ret.push(parseInt(sha.substring(i, i+2), 16));
+  }
+  return ret;
+}
+
+function b32tob8(v) {
+  return [v >> 24 & 0xFF, v >> 16 & 0xFF, v >> 8 & 0xFF, v & 0xFF];
 }
 
 function byteSize(str) {
-  return encodeURI(str).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length - 1;
+  return Math.min(encodeURI(str).split(/%(?:u[0-9A-F]{2})?[0-9A-F]{2}|./).length - 1, Math.pow(2, 32)/8);
 }
-
-/*
-function indexByteArray(arr) {
-  // header
-  let buf1 = new ArrayBuffer(12);
-  let view1 = new DataView(buf1);
-  // 'DIRC' signature
-  Array.from('DIRC').forEach((c, i) =>view1.setUint32(i, c.charCodeAt(0), false));
-  // version number
-  view1.setUint32(4, 4, false);
-  view1.setUint32(8, arr.length, false);
-
-  for (let i=0; i < arr.length; i++) {
-    let { value, path } = arr[i];
-
-    let buf2 = new ArrayBuffer(40);
-    let view2 = new DataView(buf2);
-
-    // regular file     ↓ === '1000'
-    view2.setUint32(24, 8, false);
-    // not executable   ↓ === '0644'
-    view2.setUint32(25, 420, false);
-    view2.setUint32(36, content.length*16, false);
-
-    parseInt(sha, 16);
-
-    arr.sort((a, b) => a.path > b.path ? 1 : -1);
-
-    console.log('v', view);
-  }
-}
-*/
 
 async function log(repo, obj) {
   for (let name in obj) {

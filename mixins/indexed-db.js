@@ -60,6 +60,7 @@ function mixin(repo, prefix) {
   repo.readRef = readRef;
   repo.updateRef = updateRef;
   repo.hasHash = hasHash;
+  repo.enumerateObjects = enumerateObjects;
 }
 
 function saveAs(type, body, forcedHash) {
@@ -168,6 +169,19 @@ function updateRef(ref, hash) {
     let request = store.put(entry);
 
     request.onsuccess = () => resolve();
+    request.onerror = (evt) => reject(evt.target.error);
+  });
+}
+
+async function enumerateObjects() {
+  return (await getAll()).map(obj => ({ hash: obj.hash, content: obj }));
+}
+
+function getAll(query, count) {
+  return new Promise((resolve, reject) => {
+    let store = db.transaction(['objects']).objectStore('objects');
+    let request = store.getAll(query, count);
+    request.onsuccess = (evt) => resolve(evt.target.result);
     request.onerror = (evt) => reject(evt.target.error);
   });
 }
