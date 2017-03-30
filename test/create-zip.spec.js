@@ -10,7 +10,7 @@ var formats =    require('../mixins/formats.js');
 var createTree = require('../mixins/create-tree.js');
 var createZip =  require('../mixins/create-zip.js');
 
-const EXAMPLE_TREE = {
+var EXAMPLE_TREE = {
   'www/index.html': {
     mode: modes.file,
     content: '<h1>Hello</h1>\n<p>This is an HTML page?</p>\n'
@@ -20,6 +20,13 @@ const EXAMPLE_TREE = {
     content: '# Sample repo\n\nThis is a sample\n'
   }
 };
+
+for (let i = 0; i < 100; i++) {
+  EXAMPLE_TREE[`www/file${ i }.html`] = {
+    mode: modes.file,
+    content: `<h1>Hello</h1>\n<p>This is an file ${ i }?</p>\n`
+  };
+}
 
 var dbName = 'test';
 
@@ -40,7 +47,7 @@ describe('zip mixin', function() {
   });
 
   describe('archive', () => {
-    it ('should create archive', async() => {
+    it('should create archive', async() => {
       let tree = await repo.loadAs('tree', treeHash);
 
       let commitHash = await repo.saveAs('commit', {
@@ -71,7 +78,6 @@ describe('zip mixin', function() {
           zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), deflate(content), opts);
           continue;
         }
-        console.log('content', content);
         throw new Error('content must be a string');
       };
 
@@ -83,8 +89,6 @@ describe('zip mixin', function() {
 
       let url = window.URL.createObjectURL(content);
 
-      console.log('here');
-
       /*
       let link = window.document.createElement('a');
       link.download = 'test.zip';
@@ -95,7 +99,7 @@ describe('zip mixin', function() {
       */
 
       //fs.writeFile('../out/out.zip', content, (err) => console.log('err', err));
-    });
+    }).timeout(100000);
   });
 
   after(async() => {
@@ -103,49 +107,63 @@ describe('zip mixin', function() {
   });
 });
 
+function test(fn, n=1) {
+  let start = window.performance.now();
+  do {
+    fn();
+  } while (--n > 0)
+  return window.performance.now() - start;
+}
+
 function byPath(a, b) {
   return a.path > b.path ? 1 : b.path > a.path ? -1 : 0;
 } 
-function createIndex(files) {
-  let header = new Uint8Array(12);
-  header.set('DIRC'.split('').map(c => c.charCodeAt(0)));
-  header.set([3], 7);
-  header.set(b32tob8(files.length), 8);
 
+function createIndex(files) {
+  // from https://github.com/git/git/blob/master/Documentation/technical/index-format.txt
   files.sort(byPath);
 
-  let res = files.reduce((accum, {path, value}) => {
-    let stringPath = path.join('/').split('');
-    let length = 64 + stringPath.length;
-    length += 8 - (length % 8);
-    let ret = new Uint8Array(length);
+  let names = files.map(({ path, value }) => {
+    let name = path.join('/');
+    let i = name.length + 8 - (name.length % 8);
+    return { value, name, i };
+  });
+
+  let length = names.reduce((a, { i }) => a + i, names.length*64+12+20);
+  let ret = new Uint8Array(length);
+
+  ret.set('DIRC'.split('').map(c => c.charCodeAt(0)));
+  ret.set([3], 7);
+  ret.set(b32tob8(files.length), 8);
+
+  let index = 12;
+  for (let { name, value, i } of names) {
+    index += 24; // 24
+    // 1000 regular file, 0644 not execuatable
     let mode = (parseInt('1000', 2) << 12) | parseInt('0644', 8);
-    ret.set(b32tob8(mode), 24);
-
+    ret.set(b32tob8(mode), index);
+    index += 12; // 36
     let size = byteSize(value);
-    ret.set(b32tob8(size), 36);
-
+    ret.set(b32tob8(size), index);
+    index += 4; // 40
+    // everything in index is a file
     let sha = sha1arr(`blob ${value.length}\0${value}`);
-    ret.set(sha, 40);
-
-    let flags = (0x4000 | Math.min(stringPath.length, 0xFFF)) << 16;
-    ret.set(b32tob8(flags), 60);
-
-    let pathbytes = stringPath
-      .map(c => c.charCodeAt(0))
-    ret.set(pathbytes, 64);
-
-    return accum.concat(Array.from(ret));
-  }, Array.from(header));
-
-  let sha = sha1(res);
-  let shabytes = [];
-  for (let i=0; i <sha.length; i+=2) {
-    shabytes.push(parseInt(sha.substring(i, i+2), 16));
+    ret.set(sha, index);
+    index += 20; // 60
+    // assume valid, name length
+    let flags = (0x4000 | Math.min(name.length, 0xFFF)) << 16;
+    ret.set(b32tob8(flags), index);
+    index += 4; // 64
+    // (padded) pathname
+    let pathbytes = name.split('').map(c => c.charCodeAt(0))
+    ret.set(pathbytes, index);
+    index += i;
   }
-  res.push(...shabytes);
-  return Uint8Array.from(res);
+
+  ret.set(sha1arr(ret.subarray(0, length-20)), index);
+  return ret;
 }
+
 
 function sha1arr(val) {
   let sha = sha1(val);
