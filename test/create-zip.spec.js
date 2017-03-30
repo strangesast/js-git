@@ -1,25 +1,27 @@
 var assert = require('assert');
-
-var codec = require('../lib/object-codec.js');
-var modes = require('../lib/modes.js');
-//var memdb = require('../mixins/mem-db.js');
-var idb = require('../mixins/indexed-db.js');
-var formats = require('../mixins/formats.js');
-var createTree = require('../mixins/create-tree.js');
-var createZip = require('../mixins/create-zip.js');
 var sha1 = require('git-sha1');
 var { deflate } = require('pako');
 
+var codec =      require('../lib/object-codec.js');
+var modes =      require('../lib/modes.js');
+var memdb =      require('../mixins/mem-db.js');
+var idb =        require('../mixins/indexed-db.js');
+var formats =    require('../mixins/formats.js');
+var createTree = require('../mixins/create-tree.js');
+var createZip =  require('../mixins/create-zip.js');
+
 const EXAMPLE_TREE = {
-  "www/index.html": {
+  'www/index.html': {
     mode: modes.file,
-    content: "<h1>Hello</h1>\n<p>This is an HTML page?</p>\n"
+    content: '<h1>Hello</h1>\n<p>This is an HTML page?</p>\n'
   },
-  "README.md": {
+  'README.md': {
     mode: modes.file,
-    content: "# Sample repo\n\nThis is a sample\n"
+    content: '# Sample repo\n\nThis is a sample\n'
   }
 };
+
+var dbName = 'test';
 
 describe('zip mixin', function() {
   var db;
@@ -28,7 +30,7 @@ describe('zip mixin', function() {
 
   before(async() => {
     //memdb(repo);
-    await idb.init('test', 1);
+    db = await idb.init('testt', 1);
     idb(repo, 'testing');
     formats(repo);
     createTree(repo);
@@ -63,18 +65,21 @@ describe('zip mixin', function() {
       }
 
       let opts = { binary: true };
-      for (let { hash, content } of await repo.enumerateObjects()) {
+      let objects = await repo.enumerateObjects();
+      for (let { hash, content } of objects) {
+        console.log('content', content);
         zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), deflate(content), opts);
       };
 
       zip.file('.git/refs/heads/master', commitHash + '\n', opts);
       zip.file('.git/HEAD', 'ref: refs/heads/master\n', opts);
-
       zip.file('.git/index', createIndex(arr), opts);
 
       let content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 
       let url = window.URL.createObjectURL(content);
+
+      console.log('here');
 
       /*
       let link = window.document.createElement('a');

@@ -173,9 +173,15 @@ function updateRef(ref, hash) {
   });
 }
 
-async function enumerateObjects() {
-  return (await getAll()).map(obj => ({ hash: obj.hash, content: obj }));
+function enumerateObjects() {
+  return getAll().then(objects => objects && objects.map(({ hash, body, type }) => ({ hash, content: codec.frame({ type, body }) })));
 }
+
+/*
+function enumerateObjects() {
+  return getAll().then(objects => objects.map(obj => ({ hash: obj.hash, content: obj })));
+}
+*/
 
 function getAll(query, count) {
   return new Promise((resolve, reject) => {

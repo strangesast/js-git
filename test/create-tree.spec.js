@@ -12,8 +12,9 @@ var idb =        require('../mixins/indexed-db.js');
 var formats =    require('../mixins/formats.js');
 var modes =      require('../lib/modes.js');
 var createTree = require('../mixins/create-tree.js');
+var memdb =      require('../mixins/mem-db.js');
 
-var dbName = 'test';
+var dbName = 'testt';
 
 var TEST_ENTRY = {
   path: 'www/index.html',
@@ -27,8 +28,9 @@ describe('create-tree mixin', () => {
   var repo = {};
 
   before(async() => {
-    db = await idb.init(dbName, 1);
-    idb(repo, 'testing');
+    //db = await idb.init(dbName, 1);
+    //idb(repo, 'testing');
+    memdb(repo);
     formats(repo);
     createTree(repo);
   });

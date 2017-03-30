@@ -28,7 +28,7 @@ describe('indexeddb mixin', () => {
   var repo = {};
   var commitHash;
 
-  before(async () => {
+  before(async() => {
     db = await idb.init(dbName, 1);
     idb(repo, 'testing');
     formats(repo);
