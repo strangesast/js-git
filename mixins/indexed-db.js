@@ -11,6 +11,7 @@ mixin.init = init;
 mixin.loadAs = loadAs;
 mixin.loadManyRaw = loadManyRaw;
 mixin.saveAs = saveAs;
+mixin.saveManyAs = saveManyAs;
 mixin.loadRaw = loadRaw;
 module.exports = mixin;
 
@@ -54,6 +55,7 @@ function mixin(repo, prefix) {
   if (!prefix) throw new Error('Prefix required');
   repo.refPrefix = prefix;
   repo.saveAs = saveAs;
+  repo.saveManyAs = saveManyAs;
   repo.loadAs = loadAs;
   repo.loadRaw = loadRaw;
   repo.loadManyRaw = loadManyRaw;
@@ -74,11 +76,35 @@ function saveAs(type, body, forcedHash) {
     }
     let trans = db.transaction(['objects'], 'readwrite');
     let store = trans.objectStore('objects');
-    let entry = { hash: hash, type: type, body: body };
-    let request = store.put(entry);
+    let request = store.put({ hash, type, body });
 
     request.onsuccess = () => resolve(hash);
     request.onerror = (evt) => reject(evt.target.error);
+  });
+}
+
+function saveManyAs(arr) {
+  return new Promise((resolve, reject) => {
+    let store = db.transaction(['objects'], 'readwrite').objectStore('objects');
+    let prep;
+    try {
+      prep = arr.map(({ type, body }) => {
+        let hash = sha1(codec.frame({ type, body }));
+        return { hash, body, type };
+      });
+    } catch (e) {
+      return reject(e);
+    }
+    let fn = (i) => {
+      if (i >= prep.length) {
+        resolve(i-1);
+      } else {
+        let req = store.put(prep[i]);
+        req.onsuccess = (evt) => fn(i+1);
+        req.onerror = (evt) => reject(evt.target.error);
+      }
+    };
+    fn(0);
   });
 }
 

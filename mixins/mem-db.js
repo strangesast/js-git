@@ -13,6 +13,8 @@ function mixin(repo) {
   var refs = {};
 
   repo.saveAs = saveAs;
+  repo.saveManyAs = saveManyAs;
+  repo.saveManyRaw = saveManyRaw;
   repo.loadAs = loadAs;
   repo.saveRaw = saveRaw;
   repo.loadRaw = loadRaw;
@@ -52,8 +54,16 @@ function mixin(repo) {
     return hash;
   }
 
+  async function saveManyAs(arr) {
+    return (await Promise.all(arr.map(({ type, body }) => repo.saveAs(type, body)))).length;
+  }
+
   async function saveRaw(hash, buffer) {
     return (objects[hash] = buffer) && hash;
+  }
+
+  async function saveManyRaw(arr) {
+    return (await Promise.all(arr.map(({ hash, buffer }) => repo.saveAs(hash, buffer)))).length;
   }
 
   async function loadAs(type, hash) {
