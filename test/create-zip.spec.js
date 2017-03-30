@@ -67,8 +67,12 @@ describe('zip mixin', function() {
       let opts = { binary: true };
       let objects = await repo.enumerateObjects();
       for (let { hash, content } of objects) {
+        if (typeof content === 'string' || content instanceof Uint8Array) {
+          zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), deflate(content), opts);
+          continue;
+        }
         console.log('content', content);
-        zip.file('.git/objects/' + hash.substring(0, 2) + '/' + hash.substring(2), deflate(content), opts);
+        throw new Error('content must be a string');
       };
 
       zip.file('.git/refs/heads/master', commitHash + '\n', opts);
