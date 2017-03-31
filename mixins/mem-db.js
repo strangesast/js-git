@@ -22,6 +22,7 @@ function mixin(repo) {
   repo.readRef = readRef;
   repo.updateRef = updateRef;
   repo.listRefs = listRefs;
+  repo.filterMissingHashes = filterMissingHashes;
   repo.enumerateObjects = enumerateObjects;
 
   async function readRef(ref) {
@@ -40,6 +41,18 @@ function mixin(repo) {
 
   async function updateRef(ref, hash) {
     return refs[ref] = hash;
+  }
+
+  async function filterMissingHashes(arr) {
+    let ret = arr.slice().filter((h, i, a) => a.indexOf(h) == i);
+
+    for (let i=0; i < ret.length; i++) {
+      if (ret[i] in objects) {
+        ret.splice(i--, 1);
+        if (ret.length == 0) break;
+      }
+    }
+    return ret;
   }
 
   async function hasHash(hash) {

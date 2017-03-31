@@ -108,6 +108,7 @@ describe('zip mixin', function() {
     }).timeout(10000);
 
     it('should read data from created archive into memory', async() => {
+      await repo2.createTree(EXAMPLE_TREE);
       let zip = await repo2.zip.create();
       await repo2.zip.load(blob);
 

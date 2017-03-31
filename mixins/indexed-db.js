@@ -13,8 +13,7 @@ mixin.loadManyRaw = loadManyRaw;
 mixin.saveAs = saveAs;
 mixin.saveManyAs = saveManyAs;
 mixin.loadRaw = loadRaw;
-module.exports = mixin;
-
+module.exports = mixin; 
 function init(name, version) {
   return new Promise((resolve, reject) => {
     db = null;
@@ -63,6 +62,7 @@ function mixin(repo, prefix) {
   repo.updateRef = updateRef;
   repo.hasHash = hasHash;
   repo.enumerateObjects = enumerateObjects;
+  repo.filterMissingHashes = filterMissingHashes;
 }
 
 function saveAs(type, body, forcedHash) {
@@ -160,6 +160,40 @@ async function loadManyRaw(hashes) {
 
       } else {
         cursor.continue(set[i]);
+      }
+    };
+    request.onerror = (evt) => reject(evt.target.error);
+  });
+}
+
+function filterMissingHashes(arr) {
+  return new Promise((resolve, reject) => {
+    // copy arg, filter duplicates, match sort in db
+    let ret = arr.slice().filter((h, i, a) => a.indexOf(h) == i).sort(comparer);
+    let i = 0;
+    let request = db.transaction(['objects'])
+      .objectStore('objects')
+      .openCursor();
+
+    request.onsuccess = (evt) => {
+      let cursor = evt.target.result;
+      if (!cursor) return resolve(ret);
+      let key = cursor.key;
+
+      while (key > ret[i]) {
+        if (++i === ret.length) {
+          return resolve(ret);
+        }
+      }
+
+      if (key === ret[i]) {
+        ret.splice(i--, 1);
+        if (ret.length == 0) {
+          return resolve(ret);
+        }
+        cursor.continue();
+      } else {
+        cursor.continue(ret[i]);
       }
     };
     request.onerror = (evt) => reject(evt.target.error);
