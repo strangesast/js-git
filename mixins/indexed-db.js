@@ -14,7 +14,7 @@ mixin.saveManyAs = saveManyAs;
 mixin.loadRaw = loadRaw;
 module.exports = mixin; 
 function init(name, version, overwrite=false) {
-  if (overwrite && mixin.db) throw new Error('db already initialized');
+  if (!overwrite && mixin.db) throw new Error('db already initialized');
   return new Promise((resolve, reject) => {
     mixin.db = null;
     let request = indexedDB.open(name, version);
