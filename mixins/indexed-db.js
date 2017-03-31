@@ -4,7 +4,6 @@
 var codec = require('../lib/object-codec.js');
 var sha1 = require('git-sha1');
 var modes = require('../lib/modes.js');
-var db;
 
 mixin.init = init;
 
@@ -14,14 +13,15 @@ mixin.saveAs = saveAs;
 mixin.saveManyAs = saveManyAs;
 mixin.loadRaw = loadRaw;
 module.exports = mixin; 
-function init(name, version) {
+function init(name, version, overwrite=false) {
+  if (overwrite && mixin.db) throw new Error('db already initialized');
   return new Promise((resolve, reject) => {
-    db = null;
+    mixin.db = null;
     let request = indexedDB.open(name, version);
 
     // We can only create Object stores in a versionchange transaction.
     request.onupgradeneeded = (evt) => {
-      db = evt.target.result;
+      mixin.db = evt.target.result;
 
       if (evt.dataLoss && evt.dataLoss !== 'none') {
         return reject(new Error(evt.dataLoss + ': ' + evt.dataLossMessage));
@@ -32,19 +32,19 @@ function init(name, version) {
         reject(evt.target.error);
       };
 
-      let storeNames = [].slice.call(db.objectStoreNames);
+      let storeNames = [].slice.call(mixin.db.objectStoreNames);
       if (storeNames.indexOf('objects') != -1) {
-        db.deleteObjectStore('objects');
+        mixin.db.deleteObjectStore('objects');
       }
       if (storeNames.indexOf('refs') != -1) {
-        db.deleteObjectStore('refs');
+        mixin.db.deleteObjectStore('refs');
       }
 
-      db.createObjectStore('objects', { keyPath: 'hash' });
-      db.createObjectStore('refs', { keyPath: 'path' });
+      mixin.db.createObjectStore('objects', { keyPath: 'hash' });
+      mixin.db.createObjectStore('refs',    { keyPath: 'path' });
     };
 
-    request.onsuccess = (evt) => resolve(db = evt.target.result);
+    request.onsuccess = (evt) => resolve(mixin.db = evt.target.result);
     request.onerror = (evt) => reject(evt.target.error);
   });
 }
@@ -74,7 +74,7 @@ function saveAs(type, body, forcedHash) {
     } catch (err) {
       return reject(err);
     }
-    let trans = db.transaction(['objects'], 'readwrite');
+    let trans = mixin.db.transaction(['objects'], 'readwrite');
     let store = trans.objectStore('objects');
     let request = store.put({ hash, type, body });
 
@@ -85,7 +85,7 @@ function saveAs(type, body, forcedHash) {
 
 function saveManyAs(arr) {
   return new Promise((resolve, reject) => {
-    let store = db.transaction(['objects'], 'readwrite').objectStore('objects');
+    let store = mixin.db.transaction(['objects'], 'readwrite').objectStore('objects');
     let prep;
     try {
       prep = arr.map(({ type, body }) => {
@@ -119,7 +119,7 @@ async function loadAs(type, hash) {
 
 async function loadRaw(hash) {
   return new Promise((resolve, reject) => {
-    let trans = db.transaction(['objects'], 'readwrite');
+    let trans = mixin.db.transaction(['objects'], 'readwrite');
     let store = trans.objectStore('objects');
     let request = store.get(hash);
 
@@ -136,7 +136,7 @@ async function loadManyRaw(hashes) {
   return new Promise((resolve, reject) => {
     // algorithm by dfahlander
     let set = hashes.slice().sort(comparer);
-    let request = db.transaction(['objects'], 'readonly')
+    let request = mixin.db.transaction(['objects'], 'readonly')
       .objectStore('objects')
       .openCursor();
     let i = 0;
@@ -171,7 +171,7 @@ function filterMissingHashes(arr) {
     // copy arg, filter duplicates, match sort in db
     let ret = arr.slice().filter((h, i, a) => a.indexOf(h) == i).sort(comparer);
     let i = 0;
-    let request = db.transaction(['objects'])
+    let request = mixin.db.transaction(['objects'])
       .objectStore('objects')
       .openCursor();
 
@@ -208,7 +208,7 @@ async function hasHash(hash) {
 function readRef(ref) {
   return new Promise((resolve, reject) => {
     let key = this.refPrefix + '/' + ref;
-    let trans = db.transaction(['refs'], 'readwrite');
+    let trans = mixin.db.transaction(['refs'], 'readwrite');
     let store = trans.objectStore('refs');
     let request = store.get(key);
 
@@ -223,7 +223,7 @@ function readRef(ref) {
 function updateRef(ref, hash) {
   return new Promise((resolve, reject) => {
     let key = this.refPrefix + '/' + ref;
-    let trans = db.transaction(['refs'], 'readwrite');
+    let trans = mixin.db.transaction(['refs'], 'readwrite');
     let store = trans.objectStore('refs');
     let entry = { path: key, hash: hash };
     let request = store.put(entry);
@@ -245,7 +245,7 @@ function enumerateObjects() {
 
 function getAll(query, count) {
   return new Promise((resolve, reject) => {
-    let store = db.transaction(['objects']).objectStore('objects');
+    let store = mixin.db.transaction(['objects']).objectStore('objects');
     let request = store.getAll(query, count);
     request.onsuccess = (evt) => resolve(evt.target.result);
     request.onerror = (evt) => reject(evt.target.error);
