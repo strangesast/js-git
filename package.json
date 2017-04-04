@@ -16,7 +16,7 @@
     "url": "https://github.com/creationix/js-git/issues"
   },
   "scripts": {
-    "test": "karma start karma.conf.js"
+    "test": "karma start test/karma.conf.js"
   },
   "dependencies": {
     "bodec": "^0.1.0",

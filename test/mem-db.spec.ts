@@ -2,13 +2,22 @@ import {} from 'jasmine';
 import { fromUnicode, toUnicode } from 'bodec';
 import sha1 from 'git-sha1';
 import { frame, deframe } from '../lib/object-codec';
-import { FormatsMixin, MemDBMixin, Repo } from '../mixins';
+import { FormatsMixin, MemDBMixin, IRepo } from '../mixins';
 
 var blob = fromUnicode("Hello World\n");
 var blobHash = "557db03de997c86a4a028e1ebd3a1ceb225be238";
 
-class SpecialRepo extends FormatsMixin(MemDBMixin(Repo)) {
+class Repo implements IRepo {
+  saveAs;
+  loadAs;
+  saveRaw;
+  loadRaw;
+  readRef;
+  updateRef;
+  enumerateObjects;
+  constructor(public refPrefix: string) {}
 }
+class SpecialRepo extends FormatsMixin(MemDBMixin(Repo)) {}
 
 describe('memdb mixin', () => {
   var db;

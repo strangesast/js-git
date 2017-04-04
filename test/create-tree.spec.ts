@@ -1,9 +1,5 @@
 import {} from 'jasmine';
-//import { IRepo } from '../mixins/repo';
 import { IRepo, FormatsMixin, CreateTreeMixin, MemDBMixin } from '../mixins';
-//import { FormatsMixin } from '../mixins/formats';
-//import { CreateTreeMixin } from '../mixins/create-tree';
-//import { MemDBMixin } from '../mixins/mem-db';
 import modes from '../lib/modes';
 
 var dbName = 'testt';
