@@ -16,7 +16,7 @@
     "url": "https://github.com/creationix/js-git/issues"
   },
   "scripts": {
-    "test": "karma start test/karma.conf.js"
+    "test": "karma start karma.conf.js"
   },
   "dependencies": {
     "bodec": "^0.1.0",
@@ -33,7 +33,6 @@
     "jasmine-spec-reporter": "^3.2.0",
     "karma": "^1.5.0",
     "karma-chrome-launcher": "^2.0.0",
-    "karma-coverage-istanbul-reporter": "^1.0.0",
     "karma-jasmine": "^1.1.0",
     "karma-jasmine-html-reporter": "^0.2.2",
     "karma-typescript": "^3.0.0",

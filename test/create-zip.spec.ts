@@ -1,4 +1,3 @@
-import {} from 'jasmine';
 import sha1 from 'git-sha1';
 import { deflate } from 'pako';
 import modes from '../lib/modes';
@@ -48,16 +47,18 @@ class Repo implements IRepo {
 class MemRepo extends CreateZipMixin(CreateTreeMixin(FormatsMixin(MemDBMixin(Repo)))) {}
 class IDBRepo extends CreateZipMixin(CreateTreeMixin(FormatsMixin(IndexedDBMixin(Repo)))) {}
 
-describe('zip mixin', async() => {
+describe('zip mixin', () => {
   var repo1 = new IDBRepo('test-a');
   var repo2 = new MemRepo('test-b');
-  var db = await repo1.init('testt', 1);
+  var db;
   var blob;
 
-  var treeHash = await repo1.createTree(EXAMPLE_TREE);
+  var treeHash;
 
   describe('archive', () => {
-    it('should create archive', async() => {
+    it('should create archive', async(done) => {
+      db = await repo1.init('testt', 1);
+      treeHash = await repo1.createTree(EXAMPLE_TREE);
       let tree = await repo1.loadAs('tree', treeHash);
 
       let commitHash = await repo1.saveAs('commit', {
@@ -88,7 +89,7 @@ describe('zip mixin', async() => {
       await repo1.updateRef('master', secondCommitHash);
 
       // test creating a few branches
-      let zip = await repo1.zip.create('master', 'master-backup');
+      let zip = await repo1.createZip('master', 'master-backup');
 
       blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
 
@@ -101,13 +102,14 @@ describe('zip mixin', async() => {
       window.document.body.appendChild(link);
       link.click();
       */
+      done();
 
     });
 
-    it('should read data from created archive into memory', async() => {
+    it('should read data from created archive into memory', async(done) => {
       await repo2.createTree(EXAMPLE_TREE);
-      let zip = await repo2.zip.create();
-      await repo2.zip.load(blob);
+      let zip = await repo2.createZip();
+      await repo2.loadZip(blob);
 
       let commitHash = await repo2.readRef('master');
       expect(commitHash).toBeTruthy(); // 'Ref missing'
@@ -123,6 +125,8 @@ describe('zip mixin', async() => {
       for (let { path } of list) {
         expect(valid).toContain(path.join('/')); // 'Path missing in example tree.'
       };
+
+      done();
     });
   });
 });

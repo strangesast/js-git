@@ -74,7 +74,7 @@ export function IndexedDBMixin<T extends Constructor<{}>>(Base: T) {
   
     async enumerateObjects(): Promise<any[]> {
       let objects = await getAll(this.db, 'objects');
-      return objects;
+      return objects.map(({ body, hash, type }) => ({ hash, content: frame({type, body}) }));
     }
   }
 }
@@ -98,8 +98,8 @@ function openIndexedDB(name: string, version: number): Promise<IDBDatabase> {
         db.deleteObjectStore('refs');
       }
   
-      db.createObjectStore('objects', { keyPath: 'hash' });
-      db.createObjectStore('refs',    { keyPath: 'path' });
+      let objectsObjectStore = db.createObjectStore('objects', { keyPath: 'hash' });
+      let keysObjectStore = db.createObjectStore('refs',       { keyPath: 'path' });
     };
   
     request.onsuccess = (evt: any) => resolve(evt.target.result);
@@ -186,5 +186,5 @@ function getAll(db: IDBDatabase, storeName: string, query?: IDBKeyRange, maxCoun
 }
 
 function comparer(a, b): number {
-  return a < b ? -1 : a > b ? -1 : 0;
+  return a < b ? -1 : a > b ? 1 : 0;
 }

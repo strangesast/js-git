@@ -10,7 +10,7 @@ export function CreateZipMixin<T extends Constructor<IRepo>>(Base: T) {
   return class extends Base {
     zip: JSZip;
 
-    async create(...branchNames) {
+    async createZip(...branchNames) {
       if (branchNames.indexOf('master') == -1) {
         if (await this.readRef('master')) {
           branchNames.unshift('master');
@@ -79,7 +79,7 @@ export function CreateZipMixin<T extends Constructor<IRepo>>(Base: T) {
 
 
 
-    async load(data, headOnly = false) {
+    async loadZip(data, headOnly = false) {
       let zip = this.zip;
       await zip.loadAsync(data, { createFolders: true });
       let git = zip.folder('.git');

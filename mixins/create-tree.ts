@@ -1,5 +1,3 @@
-"use strict";
-
 import modes from '../lib/modes';
 import { Repo } from './repo';
 
@@ -38,7 +36,7 @@ export function CreateTreeMixin<T extends Constructor<Repo>>(Base: T) {
           blobs[fullpath] = (async function({ mode, content }) {
             let type = modes.toType(mode);
             return { hash: await this.saveAs(type, content), mode };
-          })(entry);
+          }).call(this, entry);
         }
         // removed
         else {
@@ -55,7 +53,14 @@ async function collapse(repo, root, blobs) {
   for (let name in root) {
     let val = root[name];
     if (val.mode && val.hash) continue;
-    root[name] = typeof val == 'string' ? await blobs[val] : { hash: await collapse(repo, root[name], blobs), mode: modes.tree };
+    if (typeof val === 'string') {
+      root[name] = await blobs[val];
+
+    } else {
+      let hash = await collapse(repo, root[name], blobs);
+      let mode = modes.tree;
+      root[name] = { hash, mode };
+    }
   }
   return repo.saveAs('tree', root);
 }

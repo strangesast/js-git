@@ -1,4 +1,3 @@
-import {} from 'jasmine';
 import { fromUnicode, toUnicode } from 'bodec';
 import sha1 from 'git-sha1';
 import { frame, deframe } from '../lib/object-codec';
@@ -24,30 +23,33 @@ describe('memdb mixin', () => {
   var repo = new SpecialRepo('test')
 
   describe('saveAs', () => {
-    it('should save blob', async() => {
+    it('should save blob', async(done) => {
       let hash = await repo.saveAs('blob', blob);
       expect(hash).toEqual(blobHash); // 'Hash mismatch'
+      done();
     });
   });
 
   describe('loadRaw', () => {
-    it('should encode blob properly', async() => {
+    it('should encode blob properly', async(done) => {
       let bin = await repo.loadRaw(blobHash)
       let obj = deframe(bin, true);
       expect(obj.type).toBe('blob'); // 'Wrong type'
       expect(toUnicode(obj.body)).toEqual(toUnicode(blob)); // 'Wrong body'
+      done();
     });
   });
 
   describe('loadAs', () => {
-    it('should load blob with hash', async() => {
+    it('should load blob with hash', async(done) => {
       let body = await repo.loadAs("blob", blobHash);
       expect(toUnicode(body)).toEqual(toUnicode(blob)); // 'Wrong body'
+      done();
     });
   });
 
   describe('saveRaw', () => {
-    it('should save binary body', async() => {
+    it('should save binary body', async(done) => {
       let newBody = fromUnicode("A new body\n");
       let bin = frame({ type:"blob", body: newBody });
       let hash = sha1(bin);
@@ -55,6 +57,7 @@ describe('memdb mixin', () => {
 
       let body = await repo.loadAs("blob", hash);
       expect(toUnicode(body)).toEqual(toUnicode(newBody)); // 'Body mismatch')
+      done();
     });
   });
 });

@@ -16,8 +16,8 @@ module.exports = function(config) {
       require('karma-jasmine'),
       require('karma-typescript'),
       require('karma-chrome-launcher'),
-      require('karma-jasmine-html-reporter'),
-      require('karma-coverage-istanbul-reporter')
+      require('karma-jasmine-html-reporter')
+      //require('karma-coverage-istanbul-reporter')
     ],
 
     client: {
@@ -26,7 +26,9 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      '../**/*.ts'
+      'mixins/*.ts',
+      'lib/*.ts',
+      'test/*.spec.ts'
     ],
 
 
@@ -44,14 +46,14 @@ module.exports = function(config) {
 
 
     karmaTypescriptConfig: {
-      tsconfig: '../tsconfig.json'
+      tsconfig: 'tsconfig.json'
     },
 
 
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress', 'karma-typescript', 'coverage-istanbul'],
+    reporters: ['progress', 'karma-typescript', 'kjhtml'],//, 'coverage-istanbul'],
 
 
     // web server port
