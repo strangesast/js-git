@@ -1,14 +1,12 @@
-var assert = require('assert');
-var sha1 = require('git-sha1');
-var { deflate } = require('pako');
+import {} from 'jasmine';
+import sha1 from 'git-sha1';
+import { deflate } from 'pako';
+import modes from '../lib/modes';
+import { IRepo, MemDBMixin, IndexedDBMixin, FormatsMixin, CreateTreeMixin, CreateZipMixin } from '../mixins';
 
-var codec =      require('../lib/object-codec.js');
-var modes =      require('../lib/modes.js');
-var memdb =      require('../mixins/mem-db.js');
-var idb =        require('../mixins/indexed-db.js');
-var formats =    require('../mixins/formats.js');
-var createTree = require('../mixins/create-tree.js');
-var createZip =  require('../mixins/create-zip.js');
+interface TreeChanges {
+  base?: string;
+}
 
 var EXAMPLE_TREE = {
   'www/index.html': {
@@ -37,27 +35,26 @@ var ADDED = {
 
 var dbName = 'test';
 
-describe('zip mixin', function() {
-  var db;
-  var repo1 = {};
-  var repo2 = {};
-  var treeHash;
+class Repo implements IRepo {
+  saveAs;
+  loadAs;
+  saveRaw;
+  loadRaw;
+  readRef;
+  updateRef;
+  enumerateObjects;
+  constructor(public refPrefix: string) {}
+}
+class MemRepo extends CreateZipMixin(CreateTreeMixin(FormatsMixin(MemDBMixin(Repo)))) {}
+class IDBRepo extends CreateZipMixin(CreateTreeMixin(FormatsMixin(IndexedDBMixin(Repo)))) {}
+
+describe('zip mixin', async() => {
+  var repo1 = new IDBRepo('test-a');
+  var repo2 = new MemRepo('test-b');
+  var db = await repo1.init('testt', 1);
   var blob;
 
-  before(async() => {
-    //memdb(repo);
-    db = await idb.init('testt', 1);
-    idb(repo1, 'testing');
-    memdb(repo2)
-    formats(repo1);
-    formats(repo2);
-    createTree(repo1);
-    createTree(repo2);
-    createZip(repo1);
-    createZip(repo2);
-
-    treeHash = await repo1.createTree(EXAMPLE_TREE);
-  });
+  var treeHash = await repo1.createTree(EXAMPLE_TREE);
 
   describe('archive', () => {
     it('should create archive', async() => {
@@ -72,7 +69,7 @@ describe('zip mixin', function() {
         tree: treeHash
       });
 
-      let changes = Object.keys(ADDED).map(path => Object.assign({ path }, ADDED[path]));
+      let changes: TreeChanges = Object.keys(ADDED).map(path => Object.assign({ path }, ADDED[path]));
       changes.base = treeHash;
 
       let newTree = await repo1.createTree(changes);
@@ -105,7 +102,7 @@ describe('zip mixin', function() {
       link.click();
       */
 
-    }).timeout(10000);
+    });
 
     it('should read data from created archive into memory', async() => {
       await repo2.createTree(EXAMPLE_TREE);
@@ -113,29 +110,19 @@ describe('zip mixin', function() {
       await repo2.zip.load(blob);
 
       let commitHash = await repo2.readRef('master');
-      assert(commitHash, 'Ref missing');
+      expect(commitHash).toBeTruthy(); // 'Ref missing'
 
       let commit = await repo2.loadAs('commit', commitHash);
-      assert(commit, 'Commit missing');
+      expect(commit).toBeTruthy(); // 'Commit missing'
 
       let tree = await repo2.loadAs('tree', commit.tree);
-      assert(tree, 'Root tree missing');
+      expect(tree).toBeTruthy(); // 'Root tree missing'
 
-      let list = await createZip.flatten(repo2, commit.tree);
+      let list = await repo2.flattenTree(repo2, commit.tree);
       let valid = Object.assign({}, EXAMPLE_TREE, ADDED)
       for (let { path } of list) {
-        assert(path.join('/') in valid, 'Path missing in example tree.');
+        expect(valid).toContain(path.join('/')); // 'Path missing in example tree.'
       };
     });
   });
 });
-
-/*
-function test(fn, n=1) {
-  let start = window.performance.now();
-  do {
-    fn();
-  } while (--n > 0)
-  return window.performance.now() - start;
-}
-*/

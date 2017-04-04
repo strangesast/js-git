@@ -1,42 +1,36 @@
-"use strict";
+import { fromUnicode, toUnicode } from 'bodec';
+import { treeMap } from '../lib/object-codec';
+import { IRepo } from './repo';
 
-var bodec = require('bodec');
-var treeMap = require('../lib/object-codec').treeMap;
+type Constructor<T> = new(...args: any[]) => T;
 
-module.exports = function (repo) {
-  var loadAs = repo.loadAs;
-  repo.loadAs = newLoadAs;
-  var saveAs = repo.saveAs;
-  repo.saveAs = newSaveAs;
-
-  function newLoadAs(type, hash) {
-    var realType = type === "text" ? "blob":
-                   type === "array" ? "tree" : type;
-    return loadAs.call(repo, realType, hash).then(body => {
+export function FormatsMixin<T extends Constructor<IRepo>>(Base: T) {
+  return class extends Base {
+    async loadAs(type, hash) {
+      let realType = type === 'text' ? 'blob': type === 'array' ? 'tree' : type;
+      let body = await super.loadAs(realType, hash);
       if (body === undefined) throw new TypeError('No object with that hash');
-      if (type === "text") body = bodec.toUnicode(body);
-      if (type === "array") body = toArray(body);
+      if (type === 'text') body = toUnicode(body);
+      if (type === 'array') body = toArray(body);
       return body;
-    });
-  };
-
-  function newSaveAs(type, body) {
-    type = type === "text" ? "blob":
-           type === "array" ? "tree" : type;
-    if (type === "blob") {
-      if (typeof body === "string") {
-        body = bodec.fromUnicode(body);
-      }
-    } else if (type === "tree") {
-      body = normalizeTree(body);
-    } else if (type === "commit") {
-      body = normalizeCommit(body);
-    } else if (type === "tag") {
-      body = normalizeTag(body);
     }
-    return saveAs.call(repo, type, body);
-  };
-};
+
+    async saveAs(type, body) {
+      type = type === "text" ? "blob":
+             type === "array" ? "tree" : type;
+      if (type === "blob" && typeof body === 'string') {
+        body = fromUnicode(body);
+      } else if (type === "tree") {
+        body = normalizeTree(body);
+      } else if (type === "commit") {
+        body = normalizeCommit(body);
+      } else if (type === "tag") {
+        body = normalizeTag(body);
+      }
+      return super.saveAs(type, body);
+    };
+  }
+}
 
 function toArray(tree) {
   return Object.keys(tree).map(treeMap, tree);

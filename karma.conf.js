@@ -1,5 +1,5 @@
 // Karma configuration
-// Generated on Mon Mar 27 2017 14:24:17 GMT-0400 (EDT)
+// Generated on Mon Apr 03 2017 08:17:27 GMT-0400 (EDT)
 
 module.exports = function(config) {
   config.set({
@@ -10,32 +10,49 @@ module.exports = function(config) {
 
     // frameworks to use
     // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
-    frameworks: ['mocha'],
+    frameworks: ['jasmine', 'karma-typescript'],
 
+    plugins: [
+      require('karma-jasmine'),
+      require('karma-typescript'),
+      require('karma-chrome-launcher'),
+      require('karma-jasmine-html-reporter'),
+      require('karma-coverage-istanbul-reporter')
+    ],
+
+    client: {
+      clearContext: false
+    },
 
     // list of files / patterns to load in the browser
     files: [
-      'test/*.spec.js'
+      'test/*.spec.ts'
     ],
 
 
     // list of files to exclude
     exclude: [
-      '**/*.swp'
+      '**/*.swp',
+      'node_modules/'
     ],
 
 
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'test/*.spec.js': ['webpack', 'sourcemap']
+      '**/*.ts': ['karma-typescript']
+    },
+
+
+    karmaTypescriptConfig: {
+      tsconfig: './tsconfig.json'
     },
 
 
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress', 'mocha'],
+    reporters: ['progress', 'karma-typescript', 'coverage-istanbul'],
 
 
     // web server port
@@ -48,7 +65,7 @@ module.exports = function(config) {
 
     // level of logging
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
-    logLevel: config.LOG_DEBUG,
+    logLevel: config.LOG_INFO,
 
 
     // enable / disable watching file and executing tests whenever any file changes
@@ -66,14 +83,6 @@ module.exports = function(config) {
 
     // Concurrency level
     // how many browser should be started simultaneous
-    concurrency: Infinity,
-
-    // Webpack Config
-    webpackMiddleware: {
-      stats: {
-        chunks: false
-      },
-      devtool: 'inline-source-map'
-    }
+    concurrency: Infinity
   })
 }

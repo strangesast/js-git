@@ -1,40 +1,28 @@
 "use strict";
-var bodec = require('bodec');
-var modes = require('./modes');
+import { join, isBinary, encodeUtf8, decodeHex, toHex, fromRaw, toRaw, fromUnicode, toUnicode, slice } from 'bodec';
+import modes from './modes';
 
 // (body) -> raw-buffer
-var encoders = exports.encoders = {
+export const encoders = {
   blob: encodeBlob,
   tree: encodeTree,
   commit: encodeCommit,
   tag: encodeTag
 };
 
-  // ({type:type, body:raw-buffer}) -> buffer
-exports.frame = frame;
-
-// (raw-buffer) -> body
-var decoders = exports.decoders ={
+export const decoders = {
   blob: decodeBlob,
   tree: decodeTree,
   commit: decodeCommit,
   tag: decodeTag
 };
 
-// (buffer) -> {type:type, body:raw-buffer}
-exports.deframe = deframe;
-exports.decoders = decoders;
-
-// Export git style path sort in case it's wanted.
-exports.treeMap = treeMap;
-exports.treeSort = treeSort;
-
 function encodeBlob(body) {
-  if (!bodec.isBinary(body)) throw new TypeError("Blobs must be binary values");
+  if (!isBinary(body)) throw new TypeError("Blobs must be binary values");
   return body;
 }
 
-function treeMap(key) {
+export function treeMap(key) {
   /*jshint validthis:true*/
   var entry = this[key];
   return {
@@ -44,7 +32,7 @@ function treeMap(key) {
   };
 }
 
-function treeSort(a, b) {
+export function treeSort(a, b) {
   var aa = (a.mode === modes.tree) ? a.name + "/" : a.name;
   var bb = (b.mode === modes.tree) ? b.name + "/" : b.name;
   return aa > bb ? 1 : aa < bb ? -1 : 0;
@@ -56,10 +44,10 @@ function encodeTree(body) {
   var list = Object.keys(body).map(treeMap, body).sort(treeSort);
   for (var i = 0, l = list.length; i < l; i++) {
     var entry = list[i];
-    tree += entry.mode.toString(8) + " " + bodec.encodeUtf8(entry.name) +
-            "\0" + bodec.decodeHex(entry.hash);
+    tree += entry.mode.toString(8) + " " + encodeUtf8(entry.name) +
+            "\0" + decodeHex(entry.hash);
   }
-  return bodec.fromRaw(tree);
+  return fromRaw(tree);
 }
 
 function encodeTag(body) {
@@ -68,7 +56,7 @@ function encodeTag(body) {
     "\ntag " + body.tag +
     "\ntagger " + formatPerson(body.tagger) +
     "\n\n" + body.message;
-  return bodec.fromUnicode(str);
+  return fromUnicode(str);
 }
 
 function encodeCommit(body) {
@@ -79,7 +67,7 @@ function encodeCommit(body) {
   str += "\nauthor " + formatPerson(body.author) +
          "\ncommitter " + formatPerson(body.committer) +
          "\n\n" + body.message;
-  return bodec.fromUnicode(str);
+  return fromUnicode(str);
 }
 
 
@@ -115,12 +103,12 @@ function formatDate(date) {
   return seconds + " " + offset;
 }
 
-function frame(obj) {
+export function frame(obj) {
   var type = obj.type;
   var body = obj.body;
-  if (!bodec.isBinary(body)) body = encoders[type](body);
-  return bodec.join([
-    bodec.fromRaw(`${ type } ${ body.length }\0`),
+  if (!isBinary(body)) body = encoders[type](body);
+  return join([
+    fromRaw(`${ type } ${ body.length }\0`),
     body
   ]);
 }
@@ -144,8 +132,8 @@ function decodeTree(body) {
     mode = parseOct(body, start, i++);
     start = i;
     i = indexOf(body, 0x00, start);
-    name = bodec.toUnicode(body, start, i++);
-    hash = bodec.toHex(body, i, i += 20);
+    name = toUnicode(body, start, i++);
+    hash = toHex(body, i, i += 20);
     tree[name] = {
       mode: mode,
       hash: hash
@@ -170,11 +158,11 @@ function decodeCommit(body) {
     start = i;
     i = indexOf(body, 0x20, start);
     if (i < 0) throw new SyntaxError("Missing space");
-    key = bodec.toRaw(body, start, i++);
+    key = toRaw(body, start, i++);
     start = i;
     i = indexOf(body, 0x0a, start);
     if (i < 0) throw new SyntaxError("Missing linefeed");
-    var value = bodec.toUnicode(body, start, i++);
+    var value: any = toUnicode(body, start, i++);
     if (key === "parent") {
       parents.push(value);
     }
@@ -186,7 +174,7 @@ function decodeCommit(body) {
     }
   }
   i++;
-  commit.message = bodec.toUnicode(body, i, body.length);
+  commit.message = toUnicode(body, i, body.length);
   return commit;
 }
 
@@ -194,21 +182,21 @@ function decodeTag(body) {
   var i = 0;
   var start;
   var key;
-  var tag = {};
+  var tag = { message: null };
   while (body[i] !== 0x0a) {
     start = i;
     i = indexOf(body, 0x20, start);
     if (i < 0) throw new SyntaxError("Missing space");
-    key = bodec.toRaw(body, start, i++);
+    key = toRaw(body, start, i++);
     start = i;
     i = indexOf(body, 0x0a, start);
     if (i < 0) throw new SyntaxError("Missing linefeed");
-    var value = bodec.toUnicode(body, start, i++);
+    var value: any = toUnicode(body, start, i++);
     if (key === "tagger") value = decodePerson(value);
     tag[key] = value;
   }
   i++;
-  tag.message = bodec.toUnicode(body, i, body.length);
+  tag.message = toUnicode(body, i, body.length);
   return tag;
 }
 
@@ -225,22 +213,22 @@ function decodePerson(string) {
   };
 }
 
-function deframe(buffer, decode) {
+export function deframe(buffer, decode) {
   var space = indexOf(buffer, 0x20);
   if (space < 0) throw new Error("Invalid git object buffer");
   var nil = indexOf(buffer, 0x00, space);
   if (nil < 0) throw new Error("Invalid git object buffer");
-  var body = bodec.slice(buffer, nil + 1);
+  var body = slice(buffer, nil + 1);
   var size = parseDec(buffer, space + 1, nil);
   if (size !== body.length) throw new Error("Invalid body length.");
-  var type = bodec.toRaw(buffer, 0, space);
+  var type = toRaw(buffer, 0, space);
   return {
     type: type,
     body: decode ? decoders[type](body) : body
   };
 }
 
-function indexOf(buffer, byte, i) {
+function indexOf(buffer, byte, i?) {
   i |= 0;
   var length = buffer.length;
   for (;;i++) {
