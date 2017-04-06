@@ -128,5 +128,19 @@ describe('zip mixin', () => {
 
       done();
     });
+
+    it('should retrieve and load zip file', async(done) => {
+      let path = '/base/test.zip';
+      let request = new Request(path);
+      let response = await fetch(request);
+      let blob = await response.blob();
+
+      let repo = new MemRepo('tes');
+      await repo.createZip();
+      await repo.loadZip(blob);
+
+      console.log('repo', repo);
+      done();
+    });
   });
 });

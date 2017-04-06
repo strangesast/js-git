@@ -82,32 +82,35 @@ export function CreateZipMixin<T extends Constructor<IRepo>>(Base: T) {
     async loadZip(data, headOnly = false) {
       let zip = this.zip;
       await zip.loadAsync(data, { createFolders: true });
-      let git = zip.folder('.git');
-      let currentBranch = await git.file('HEAD').async('string');
-      let refs = git.folder('refs');
+      
+      if ('.git/' in zip.files) {
+        let git = zip.folder('.git');
+        let currentBranch = await git.file('HEAD').async('string');
+        let refs = git.folder('refs');
 
-      let tags =    refs.folder('tags');
-      let remotes = refs.folder('remotes');
-      let heads =   refs.folder('heads');
+        let tags =    refs.folder('tags');
+        let remotes = refs.folder('remotes');
+        let heads =   refs.folder('heads');
 
-      if (!currentBranch.startsWith('ref: ')) throw new Error('invalid HEAD');
-      let path = currentBranch.substring(5).trim(); // like 'refs/heads/master'
-      let branchNames = git.folder('refs').folder('heads')
-        .filter((_, { dir }) => !dir).map(({ name }) => name.split('/').slice(-1)[0]);
-      let headBranchName = (path.split('/').slice(-1)[0]).trim();
-      let commit = (await git.file(path).async('string')).trim();
-      // find those not yet saved
-      let hashes = git.folder('objects')
-        .filter((_, { dir }) => !dir)
-        .map(({ name }) => name.split('/').slice(-2).join(''));
-      let compressed = await Promise.all(hashes.map(hash => git
-        .folder('objects')
-        .file(hash.substring(0, 2) + '/' + hash.substring(2))
-        .async('arraybuffer')));
-      // save raw objects
-      await Promise.all(hashes.map((hash, i) => this.saveRaw(hash, inflate(compressed[i]))));
-      // branches
-      await Promise.all(branchNames.map(name => git.file('refs/heads/' + name).async('string').then(commit => this.updateRef(name, commit.trim()))));
+        if (!currentBranch.startsWith('ref: ')) throw new Error('invalid HEAD');
+        let path = currentBranch.substring(5).trim(); // like 'refs/heads/master'
+        let branchNames = git.folder('refs').folder('heads')
+          .filter((_, { dir }) => !dir).map(({ name }) => name.split('/').slice(-1)[0]);
+        let headBranchName = (path.split('/').slice(-1)[0]).trim();
+        let commit = (await git.file(path).async('string')).trim();
+        // find those not yet saved
+        let hashes = git.folder('objects')
+          .filter((_, { dir }) => !dir)
+          .map(({ name }) => name.split('/').slice(-2).join(''));
+        let compressed = await Promise.all(hashes.map(hash => git
+          .folder('objects')
+          .file(hash.substring(0, 2) + '/' + hash.substring(2))
+          .async('arraybuffer')));
+        // save raw objects
+        await Promise.all(hashes.map((hash, i) => this.saveRaw(hash, inflate(compressed[i]))));
+        // branches
+        await Promise.all(branchNames.map(name => git.file('refs/heads/' + name).async('string').then(commit => this.updateRef(name, commit.trim()))));
+      }
       return;
     }
 

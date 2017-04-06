@@ -28,7 +28,8 @@ module.exports = function(config) {
     files: [
       'mixins/*.ts',
       'lib/*.ts',
-      'test/*.spec.ts'
+      'test/*.spec.ts',
+      { pattern: 'test.zip', included: false, served: true, watched: false, nocache: true }
     ],
 
 
