@@ -129,7 +129,7 @@ describe('zip mixin', () => {
       done();
     });
 
-    it('should retrieve and load zip file', async(done) => {
+    xit('should retrieve and load zip file', async(done) => {
       let path = '/base/test.zip';
       let request = new Request(path);
       let response = await fetch(request);
