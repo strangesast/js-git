@@ -1,7 +1,7 @@
 import sha1 from 'git-sha1';
 import { deflate } from 'pako';
 import modes from '../lib/modes';
-import { IRepo, MemDBMixin, IndexedDBMixin, FormatsMixin, CreateTreeMixin, CreateZipMixin } from '../mixins';
+import { IRepo, memDBMixin, indexedDBMixin, formatsMixin, createTreeMixin, createZipMixin } from '../mixins';
 
 interface TreeChanges {
   base?: string;
@@ -44,8 +44,8 @@ class Repo implements IRepo {
   enumerateObjects;
   constructor(public refPrefix: string) {}
 }
-class MemRepo extends CreateZipMixin(CreateTreeMixin(FormatsMixin(MemDBMixin(Repo)))) {}
-class IDBRepo extends CreateZipMixin(CreateTreeMixin(FormatsMixin(IndexedDBMixin(Repo)))) {}
+class MemRepo extends createZipMixin(createTreeMixin(formatsMixin(memDBMixin(Repo)))) {}
+class IDBRepo extends createZipMixin(createTreeMixin(formatsMixin(indexedDBMixin(Repo)))) {}
 
 describe('zip mixin', () => {
   var repo1 = new IDBRepo('test-a');

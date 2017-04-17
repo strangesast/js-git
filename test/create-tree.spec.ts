@@ -1,8 +1,5 @@
 import { IRepo } from '../mixins/repo';
-import { FormatsMixin } from '../mixins/formats';
-import { CreateTreeMixin } from '../mixins/create-tree';
-import { MemDBMixin } from '../mixins/mem-db';
-///import { IRepo, FormatsMixin, CreateTreeMixin, MemDBMixin } from '../mixins';
+import { formatsMixin, createTreeMixin, memDBMixin } from '../mixins';
 import modes from '../lib/modes';
 
 var dbName = 'testt';
@@ -23,7 +20,7 @@ class Repo implements IRepo {
   enumerateObjects;
   constructor(public refPrefix: string) {}
 }
-class SpecialRepo extends FormatsMixin(CreateTreeMixin(MemDBMixin(Repo))) {}
+class SpecialRepo extends formatsMixin(createTreeMixin(memDBMixin(Repo))) {}
 
 describe('create-tree mixin', () => {
   var db;

@@ -16,7 +16,7 @@ interface RefRecord {
 
 type Constructor<T> = new(...args: any[]) => T;
 
-export function IndexedDBMixin<T extends Constructor<{}>>(Base: T) {
+export function indexedDBMixin<T extends Constructor<{}>>(Base: T) {
   return class extends Base {
     db: IDBDatabase;
     refPrefix: string;

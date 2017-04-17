@@ -1,6 +1,6 @@
 import { fromUnicode } from 'bodec';
 import modes from '../lib/modes';
-import { FormatsMixin, IndexedDBMixin, IRepo } from '../mixins';
+import { formatsMixin, indexedDBMixin, IRepo } from '../mixins';
 
 const blob = fromUnicode("Hello World\n");
 const blobHash = "557db03de997c86a4a028e1ebd3a1ceb225be238";
@@ -18,7 +18,7 @@ class Repo implements IRepo {
   enumerateObjects;
   constructor(public refPrefix: string) {}
 }
-class SpecialRepo extends FormatsMixin(IndexedDBMixin(Repo)) {}
+class SpecialRepo extends formatsMixin(indexedDBMixin(Repo)) {}
 
 describe('indexeddb mixin', () => {
   var commitHash;

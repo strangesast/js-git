@@ -3,7 +3,7 @@ import { Repo } from './repo';
 
 type Constructor<T> = new(...args: any[]) => T;
 
-export function CreateTreeMixin<T extends Constructor<Repo>>(Base: T) {
+export function createTreeMixin<T extends Constructor<Repo>>(Base: T) {
   return class extends Base {
     loadAs;
 

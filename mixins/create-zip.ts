@@ -6,7 +6,7 @@ import { deflate, inflate } from 'pako';
 
 type Constructor<T> = new(...args: any[]) => T;
 
-export function CreateZipMixin<T extends Constructor<IRepo>>(Base: T) {
+export function createZipMixin<T extends Constructor<IRepo>>(Base: T) {
   return class extends Base {
     zip: JSZip;
 

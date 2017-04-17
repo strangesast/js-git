@@ -1,7 +1,7 @@
 import { fromUnicode, toUnicode } from 'bodec';
 import sha1 from 'git-sha1';
 import { frame, deframe } from '../lib/object-codec';
-import { FormatsMixin, MemDBMixin, IRepo } from '../mixins';
+import { formatsMixin, memDBMixin, IRepo } from '../mixins';
 
 var blob = fromUnicode("Hello World\n");
 var blobHash = "557db03de997c86a4a028e1ebd3a1ceb225be238";
@@ -16,7 +16,7 @@ class Repo implements IRepo {
   enumerateObjects;
   constructor(public refPrefix: string) {}
 }
-class SpecialRepo extends FormatsMixin(MemDBMixin(Repo)) {}
+class SpecialRepo extends formatsMixin(memDBMixin(Repo)) {}
 
 describe('memdb mixin', () => {
   var db;

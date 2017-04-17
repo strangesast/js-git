@@ -1,13 +1,19 @@
 import { fromUnicode, toUnicode } from 'bodec';
 import { treeMap } from '../lib/object-codec';
-import { IRepo } from './repo';
 
 type Constructor<T> = new(...args: any[]) => T;
+type validType = 'blob'|'tree'|'commit'|'tag';
+type extendedType = 'blob'|'tree'|'commit'|'tag'|'array'|'text';
 
-export function FormatsMixin<T extends Constructor<IRepo>>(Base: T) {
+export interface IRepo {
+  saveAs(type: validType, body: any):      Promise<string>;
+  loadAs(type: validType, hash: string):   Promise<any>;
+}
+
+export function formatsMixin<T extends Constructor<IRepo>>(Base: T) {
   return class extends Base {
-    async loadAs(type, hash) {
-      let realType = type === 'text' ? 'blob': type === 'array' ? 'tree' : type;
+    async loadAs(type: extendedType, hash) {
+      let realType = <validType>(type === 'text' ? 'blob': type === 'array' ? 'tree' : type);
       let body = await super.loadAs(realType, hash);
       if (body === undefined) throw new TypeError('No object with that hash');
       if (type === 'text') body = toUnicode(body);
@@ -15,7 +21,7 @@ export function FormatsMixin<T extends Constructor<IRepo>>(Base: T) {
       return body;
     }
 
-    async saveAs(type, body) {
+    async saveAs(type: extendedType, body) {
       type = type === "text" ? "blob":
              type === "array" ? "tree" : type;
       if (type === "blob" && typeof body === 'string') {
