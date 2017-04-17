@@ -1,5 +1,5 @@
 # JS-Git
-[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/creationix/js-git?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/creationix/js-git?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 This project is a collection of modules that helps in implementing git powered
 applications in JavaScript.  The original purpose for this is to enable better
@@ -24,65 +24,55 @@ APIs.
 
 ```js
 // This provides symbolic names for the octal modes used by git trees.
-var modes = require('js-git/lib/modes');
+import modes from 'js-git/lib/modes';
 
 // Create a repo by creating a plain object.
-var repo = {};
+class Repo extends 
+  // This provides an in-memory storage backend that provides the following APIs:
+  // - saveAs(type, value) => hash
+  // - loadAs(type, hash) => hash
+  // - saveRaw(hash, binary) =>
+  // - loadRaw(hash) => binary
+  memDBMixin(
 
-// This provides an in-memory storage backend that provides the following APIs:
-// - saveAs(type, value) => hash
-// - loadAs(type, hash) => hash
-// - saveRaw(hash, binary) =>
-// - loadRaw(hash) => binary
-require('js-git/mixins/mem-db')(repo);
+  // This adds a high-level API for creating multiple git objects by path.
+  // - createTree(entries) => hash
+  createTreeMixin(
 
-// This adds a high-level API for creating multiple git objects by path.
-// - createTree(entries) => hash
-require('js-git/mixins/create-tree')(repo);
+  // This provides extra methods for dealing with packfile streams.
+  // It depends on
+  // - unpack(packStream, opts) => hashes
+  // - pack(hashes, opts) => packStream
+  packOpsMixin(
 
-// This provides extra methods for dealing with packfile streams.
-// It depends on
-// - unpack(packStream, opts) => hashes
-// - pack(hashes, opts) => packStream
-require('js-git/mixins/pack-ops')(repo);
+  // This adds in walker algorithms for quickly walking history or a tree.
+  // - logWalk(ref|hash) => stream<commit>
+  // - treeWalk(hash) => stream<object>
+  walkersMixin(
 
-// This adds in walker algorithms for quickly walking history or a tree.
-// - logWalk(ref|hash) => stream<commit>
-// - treeWalk(hash) => stream<object>
-require('js-git/mixins/walkers')(repo);
+  // This combines parallel requests for the same resource for effeciency under load.
+  readCombinerMixin(
 
-// This combines parallel requests for the same resource for effeciency under load.
-require('js-git/mixins/read-combiner')(repo);
+  // This makes the object interface less strict.  See it's docs for details
+  formatsMixin(
 
-// This makes the object interface less strict.  See it's docs for details
-require('js-git/mixins/formats')(repo);
+  class {})))))) {}
 ```
 
 ## Generators vs Callbacks
 
 There are two control-flow styles that you can use to consume js-git APIs.  All
-the examples here use `yield` style and assume the code is contained within a
-generator function that's yielding to a tool like [gen-run](https://github.com/creationix/gen-run).
-
-This style requires ES6 generators.  This feature is currently in stable Firefox,
-in stable Chrome behind a user-configurable flag, in node.js 0.11.x or greater
-with a command-line flag.
-
-Also you can use generators on any ES5 platform if you use a source transform
-like Facebook's [regenerator](http://facebook.github.io/regenerator/) tool.
-
-You read more about how generators work at [Generators vs Fibers](http://howtonode.org/generators-vs-fibers).
+the examples here use `await` style and assume the code is contained within an
+async function.
 
 ```js
-var run = require('gen-run');
-
-run(function*() {
+(async function() {
  // Blocking logic goes here.  You can use yield
- var result = yield someAction(withArgs);
+ var result = await someAction(withArgs);
  // The generator pauses at yield and resumes when the data is available.
  // The rest of your process is not blocked, just this generator body.
  // If there was an error, it will throw into this generator.
-});
+})();
 ```
 
 If you can't use this new feature or just plain prefer node-style callbacks, all
@@ -91,16 +81,9 @@ If you don't pass in the callback, the function will return a partially applied
 version of your call expecting just the callback.
 
 ```js
-someAction(withArgs, function (err, value) {
-  if (err) return handleMyError(err);
+someAction(withArgs).then(function (value) {
   // do something with value
-});
-
-// The function would be implemented to support both style like this.
-function someAction(arg, callback) {
-  if (!callback) return someAction.bind(this, arg);
-  // We now have callback and arg
-}
+}).catch(handleMyError);
 ```
 
 ## Basic Object Creation
@@ -114,17 +97,17 @@ a commit containing that tree.  This shows how to create git objects manually.
 ```js
   // First we create a blob from a string.  The `formats` mixin allows us to
   // use a string directly instead of having to pass in a binary buffer.
-  var blobHash = yield repo.saveAs("blob", "Hello World\n");
+  let blobHash = await repo.saveAs("blob", "Hello World\n");
 
   // Now we create a tree that is a folder containing the blob as `greeting.txt`
-  var treeHash = yield repo.saveAs("tree", {
+  let treeHash = await repo.saveAs("tree", {
     "greeting.txt": { mode: modes.file, hash: blobHash }
   });
 
   // With that tree, we can create a commit.
   // Again the `formats` mixin allows us to omit details like committer, date,
   // and parents.  It assumes sane defaults for these.
-  var commitHash = yield repo.saveAs("commit", {
+  let commitHash = await repo.saveAs("commit", {
     author: {
       name: "Tim Caswell",
       email: "tim@creationix.com"
@@ -143,11 +126,11 @@ We can read objects back one at a time using `loadAs`.
 // Reading the file "greeting.txt" from a commit.
 
 // We first read the commit.
-var commit = yield repo.loadAs("commit", commitHash);
+let commit = await repo.loadAs("commit", commitHash);
 // We then read the tree using `commit.tree`.
-var tree = yield repo.loadAs("tree", commit.tree);
+let tree = await repo.loadAs("tree", commit.tree);
 // We then read the file using the entry hash in the tree.
-var file = yield repo.loadAs("blob", tree["greeting.txt"].hash);
+let file = await repo.loadAs("blob", tree["greeting.txt"].hash);
 // file is now a binary buffer.
 ```
 
@@ -156,10 +139,10 @@ When using the `formats` mixin there are two new types for `loadAs`, they are
 
 ```js
 // When you're sure the file contains unicode text, you can load it as text directly.
-var fileAsText = yield repo.loadAs("text", blobHash);
+let fileAsText = await repo.loadAs("text", blobHash);
 
 // Also if you prefer array format, you can load a directory as an array.
-var entries = yield repo.loadAs("array", treeHash);
+let entries = await repo.loadAs("array", treeHash);
 entries.forEach(function (entry) {
   // entry contains {name, mode, hash}
 });
@@ -175,17 +158,17 @@ the file tree as a depth-first linear stream.
 // Create a log stream starting at the commit we just made.
 // You could also use symbolic refs like `refs/heads/master` for repos that
 // support them.
-var logStream = yield repo.logWalk(commitHash);
+let logStream = await repo.logWalk(commitHash);
 
 // Looping through the stream is easy by repeatedly calling waiting on `read`.
-var commit, object;
-while (commit = yield logStream.read(), commit !== undefined) {
+let commit, object;
+while (commit = await logStream.read(), commit !== undefined) {
 
   console.log(commit);
 
   // We can also loop through all the files of each commit version.
-  var treeStream = yield repo.treeWalk(commit.tree);
-  while (object = yield treeStream.read(), object !== undefined) {
+  var treeStream = await repo.treeWalk(commit.tree);
+  while (object = await treeStream.read(), object !== undefined) {
     console.log(object);
   }
 
@@ -204,7 +187,7 @@ config.
 // We wish to create a tree that contains `www/index.html` and `README.me` files.
 // This will create these two blobs, create a tree for `www` and then create a
 // tree for the root containing `README.md` and the newly created `www` tree.
-var treeHash = yield repo.createTree({
+let treeHash = await repo.createTree({
   "www/index.html": {
     mode: modes.file,
     content: "<h1>Hello</h1>\n<p>This is an HTML page?</p>\n"
@@ -235,7 +218,7 @@ var changes = [
 // We need to use array form and specify the base tree hash as `base`.
 changes.base = treeHash;
 
-treeHash = yield repo.createTree(changes);
+treeHash = await repo.createTree(changes);
 ```
 
 ## Creating Composite Filesystems
