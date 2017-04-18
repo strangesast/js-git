@@ -57,6 +57,8 @@ class Repo extends
   formatsMixin(
 
   class {})))))) {}
+
+var repo = new Repo();
 ```
 
 ## Generators vs Callbacks
@@ -95,26 +97,26 @@ In this example, we'll create a blob, create a tree containing that blob, create
 a commit containing that tree.  This shows how to create git objects manually.
 
 ```js
-  // First we create a blob from a string.  The `formats` mixin allows us to
-  // use a string directly instead of having to pass in a binary buffer.
-  let blobHash = await repo.saveAs("blob", "Hello World\n");
+// First we create a blob from a string.  The `formats` mixin allows us to
+// use a string directly instead of having to pass in a binary buffer.
+let blobHash = await repo.saveAs("blob", "Hello World\n");
 
-  // Now we create a tree that is a folder containing the blob as `greeting.txt`
-  let treeHash = await repo.saveAs("tree", {
-    "greeting.txt": { mode: modes.file, hash: blobHash }
-  });
+// Now we create a tree that is a folder containing the blob as `greeting.txt`
+let treeHash = await repo.saveAs("tree", {
+  "greeting.txt": { mode: modes.file, hash: blobHash }
+});
 
-  // With that tree, we can create a commit.
-  // Again the `formats` mixin allows us to omit details like committer, date,
-  // and parents.  It assumes sane defaults for these.
-  let commitHash = await repo.saveAs("commit", {
-    author: {
-      name: "Tim Caswell",
-      email: "tim@creationix.com"
-    },
-    tree: treeHash,
-    message: "Test commit\n"
-  });
+// With that tree, we can create a commit.
+// Again the `formats` mixin allows us to omit details like committer, date,
+// and parents.  It assumes sane defaults for these.
+let commitHash = await repo.saveAs("commit", {
+  author: {
+    name: "Tim Caswell",
+    email: "tim@creationix.com"
+  },
+  tree: treeHash,
+  message: "Test commit\n"
+});
 
 ```
 
