@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "lib": ["es6", "dom"],
+    "types": [
+      "jasmine"
+    ]
+  },
+  "include": [
+    "mixins/*.ts",
+    "test/*.spec.ts",
+    "lib/*.ts",
+    "typings.d.ts"
+  ],
+  "exclude": [
+    "node_modules/"
+  ]
+}

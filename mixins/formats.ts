@@ -1,54 +1,46 @@
-"use strict";
+import { fromUnicode, toUnicode } from 'bodec';
+import { treeMap } from '../lib/object-codec';
 
-var bodec = require('bodec');
-var treeMap = require('../lib/object-codec').treeMap;
+type Constructor<T> = new(...args: any[]) => T;
+type validType = 'blob'|'tree'|'commit'|'tag';
+type extendedType = 'blob'|'tree'|'commit'|'tag'|'array'|'text';
 
-module.exports = function (repo) {
-  var loadAs = repo.loadAs;
-  repo.loadAs = newLoadAs;
-  var saveAs = repo.saveAs;
-  repo.saveAs = newSaveAs;
+export interface IRepo {
+  saveAs(type: validType, body: any):      Promise<string>;
+  loadAs(type: validType, hash: string):   Promise<any>;
+}
 
-  function newLoadAs(type, hash, callback) {
-    if (!callback) return newLoadAs.bind(repo, type, hash);
-    var realType = type === "text" ? "blob":
-                   type === "array" ? "tree" : type;
-    return loadAs.call(repo, realType, hash, onLoad);
-
-    function onLoad(err, body, hash) {
-      if (body === undefined) return callback(err);
-      if (type === "text") body = bodec.toUnicode(body);
-      if (type === "array") body = toArray(body);
-      return callback(err, body, hash);
+export function formatsMixin<T extends Constructor<IRepo>>(Base: T) {
+  return class extends Base {
+    async loadAs(type: extendedType, hash) {
+      let realType = <validType>(type === 'text' ? 'blob': type === 'array' ? 'tree' : type);
+      let body = await super.loadAs(realType, hash);
+      if (body === undefined) throw new TypeError('No object with that hash');
+      if (type === 'text') body = toUnicode(body);
+      if (type === 'array') body = toArray(body);
+      return body;
     }
-  }
 
-  function newSaveAs(type, body, callback) {
-    if (!callback) return newSaveAs.bind(repo, type, body);
-    type = type === "text" ? "blob":
-           type === "array" ? "tree" : type;
-    if (type === "blob") {
-      if (typeof body === "string") {
-        body = bodec.fromUnicode(body);
+    async saveAs(type: extendedType, body) {
+      type = type === "text" ? "blob":
+             type === "array" ? "tree" : type;
+      if (type === "blob" && typeof body === 'string') {
+        body = fromUnicode(body);
+      } else if (type === "tree") {
+        body = normalizeTree(body);
+      } else if (type === "commit") {
+        body = normalizeCommit(body);
+      } else if (type === "tag") {
+        body = normalizeTag(body);
       }
-    }
-    else if (type === "tree") {
-      body = normalizeTree(body);
-    }
-    else if (type === "commit") {
-      body = normalizeCommit(body);
-    }
-    else if (type === "tag") {
-      body = normalizeTag(body);
-    }
-    return saveAs.call(repo, type, body, callback);
+      return super.saveAs(type, body);
+    };
   }
-
-};
+}
 
 function toArray(tree) {
   return Object.keys(tree).map(treeMap, tree);
-}
+};
 
 function normalizeTree(body) {
   var type = body && typeof body;
@@ -78,7 +70,7 @@ function normalizeTree(body) {
     }
   }
   return tree;
-}
+};
 
 function normalizeCommit(body) {
   if (!body || typeof body !== "object") {
@@ -100,7 +92,7 @@ function normalizeCommit(body) {
     committer: committer,
     message: body.message
   };
-}
+};
 
 function normalizeTag(body) {
   if (!body || typeof body !== "object") {
@@ -116,7 +108,7 @@ function normalizeTag(body) {
     tagger: normalizePerson(body.tagger),
     message: body.message
   };
-}
+};
 
 function normalizePerson(person) {
   if (!person || typeof person !== "object") {
@@ -130,4 +122,4 @@ function normalizePerson(person) {
     email: person.email,
     date: person.date || new Date()
   };
-}
+};
