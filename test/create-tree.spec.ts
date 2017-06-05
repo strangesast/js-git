@@ -1,5 +1,5 @@
-import { IRepo } from '../mixins/repo';
-import { formatsMixin, createTreeMixin, memDBMixin } from '../mixins';
+import { Repo, applyMixins } from '../mixins';
+import { Formats, CreateTree, MemDB } from '../mixins';
 import modes from '../lib/modes';
 
 var dbName = 'testt';
@@ -10,24 +10,31 @@ var TEST_ENTRY = {
   content: '<h1>Hello</h1>\n<p>This is an HTML page?</p>\n'
 }
 
-class Repo implements IRepo {
-  saveAs;
-  loadAs;
-  saveRaw;
-  loadRaw;
-  readRef;
-  updateRef;
-  enumerateObjects;
-  constructor(public refPrefix: string) {}
+class SpecialRepo implements Formats, CreateTree, MemDB, Repo {
+  objects = {};
+  refs = {};
+  refPrefix;
+  createTree: (entries) => Promise<any>;
+  loadAs: (type, hash) => Promise<any>;
+  saveAs: (type, body) => Promise<string>;
+  saveManyAs: (arr) => Promise<number>;
+  saveRaw: (hash, buffer) => Promise<string>;
+  saveManyRaw: (arr) => Promise<number>;
+  loadRaw: (hash) => Promise<any>;
+  hasHash: (hash) => Promise<boolean>;
+  listRefs: (prefix) => Promise<any>;
+  enumerateObjects: () => Promise<any[]>;
+  readRef: (ref) => Promise<string>;
+  updateRef: (ref, hash) => Promise<void>;
 }
-class SpecialRepo extends formatsMixin(createTreeMixin(memDBMixin(Repo))) {}
+applyMixins(SpecialRepo, [Formats, CreateTree, MemDB]);
 
 describe('create-tree mixin', () => {
   var db;
-  var repo = new SpecialRepo('testing');
+  var repo = new SpecialRepo();
 
-  describe('createTree', async() => {
-    it('should create first tree', async(done) => {
+  describe('createTree', () => {
+    it('should create first tree', test(async() => {
       let treeHash = await repo.createTree([ TEST_ENTRY ]);
 
       let tree = await repo.loadAs('tree', treeHash);
@@ -45,8 +52,11 @@ describe('create-tree mixin', () => {
       let content = await repo.loadAs(modes.toType(folder[fname].mode), folder[fname].hash);
 
       expect(TEST_ENTRY.content).toEqual(String.fromCharCode(...content)); // 'blob saved incorrectly'
-
-      done();
-    });
+    }));
   });
 });
+function test(run) {
+  return (done) => {
+    run().then(done, e => { done.fail(e); done(); });
+  };
+}

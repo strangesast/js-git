@@ -1,10 +1,12 @@
 import { frame } from '../lib/object-codec';
 import sha1 from 'js-sha1';
 import modes from '../lib/modes';
-import { IRepo } from './repo';
+import Repo from './repo';
+
+type validType = 'blob'|'tree'|'commit'|'tag';
 
 interface ObjectRecord {
-  type: string;
+  type: validType;
   hash: string;
   body: any;
 }
@@ -14,68 +16,73 @@ interface RefRecord {
   hash: string;
 }
 
-type Constructor<T> = new(...args: any[]) => T;
+export class IndexedDB extends Repo {
+  db: IDBDatabase;
+  refPrefix: string;
 
-export function indexedDBMixin<T extends Constructor<{}>>(Base: T) {
-  return class extends Base {
-    db: IDBDatabase;
-    refPrefix: string;
-  
-    async init(name: string, version?:number) {
-      return this.db = await openIndexedDB(name, version);
+  async init(name: string, version?:number) {
+    return this.db = await openIndexedDB(name, version);
+  }
+
+  async saveAs(type: validType, body: any): Promise<string> {
+    let encodedBody = new TextEncoder().encode(body);
+    let buffer = frame({ type, body: encodedBody })
+    let hash = sha1(buffer);
+    await addToStore(this.db, 'objects', { hash, type, body });
+    return hash;
+  }
+
+  async saveRaw(hash: string, body: any) {
+    let type = 'blob';
+    await addToStore(this.db, 'objects', { hash, type, body })
+    return hash;
+  }
+
+  async saveManyAs(arr): Promise<string[]> {
+    let hashed = arr.map(({ type, body }) => ({ hash: sha1(frame({ body, type })), body, type }));
+    await addToStore(this.db, 'objects', hashed);
+    return hashed.map(({ hash }) => hash);
+  }
+
+  async loadAs(type: validType, hash: string): Promise<any> {
+    let entry = <ObjectRecord>(await getFromStore(this.db, 'objects', hash));
+    if (!entry) return null;
+    if (type !== entry.type) {
+      console.log(type, entry.type);
+      throw new TypeError('Type mismatch');
     }
-  
-    async saveAs(type: string, body: any): Promise<string> { let buffer = frame({ type, body })
-      let hash = sha1(buffer);
-      await addToStore(this.db, 'objects', { hash, type, body });
-      return hash;
-    }
-  
-    async saveManyAs(arr): Promise<string[]> {
-      let hashed = arr.map(({ type, body }) => ({ hash: sha1(frame({ body, type })), body, type }));
-      await addToStore(this.db, 'objects', hashed);
-      return hashed.map(({ hash }) => hash);
-    }
-  
-    async loadAs(type: string, hash: string): Promise<any> {
-      let entry = <ObjectRecord>(await getFromStore(this.db, 'objects', hash));
-      if (!entry) return null;
-      if (type !== entry.type) {
-        throw new TypeError('Type mismatch');
-      }
-      return entry.body;
-    }
-  
-    async loadRaw(hash: string): Promise<ObjectRecord> {
-      let entry = <ObjectRecord>(await getFromStore(this.db, 'objects', hash));
-      return entry;
-    }
-  
-    async loadManyRaw(hashes: string[]): Promise<ObjectRecord[]> {
-      return await getManyFromStore(this.db, 'objects', hashes);
-    }
-  
-    async hasHash(hash: string): Promise<boolean> {
-      let body = await this.loadRaw(hash);
-      return !!body;
-    }
-  
-    async readRef(ref: string): Promise<string> {
-      let path = this.refPrefix + '/' + ref;
-      let entry = <RefRecord>(await getFromStore(this.db, 'refs', path));
-      return entry && entry.hash;
-    }
-  
-    async updateRef(ref: string, hash: string): Promise<void> {
-      let path = this.refPrefix + '/' + ref;
-      await addToStore(this.db, 'refs', { path, hash });
-      return;
-    }
-  
-    async enumerateObjects(): Promise<any[]> {
-      let objects = await getAll(this.db, 'objects');
-      return objects.map(({ body, hash, type }) => ({ hash, content: frame({type, body}) }));
-    }
+    return entry.body;
+  }
+
+  async loadRaw(hash: string): Promise<ObjectRecord> {
+    let entry = <ObjectRecord>(await getFromStore(this.db, 'objects', hash));
+    return entry;
+  }
+
+  async loadManyRaw(hashes: string[]): Promise<ObjectRecord[]> {
+    return await getManyFromStore(this.db, 'objects', hashes);
+  }
+
+  async hasHash(hash: string): Promise<boolean> {
+    let body = await this.loadRaw(hash);
+    return !!body;
+  }
+
+  async readRef(ref: string): Promise<string> {
+    let path = this.refPrefix + '/' + ref;
+    let entry = <RefRecord>(await getFromStore(this.db, 'refs', path));
+    return entry && entry.hash;
+  }
+
+  async updateRef(ref: string, hash: string): Promise<void> {
+    let path = this.refPrefix + '/' + ref;
+    await addToStore(this.db, 'refs', { path, hash });
+    return;
+  }
+
+  async enumerateObjects(): Promise<any[]> {
+    let objects = await getAll(this.db, 'objects');
+    return objects.map(({ body, hash, type }) => ({ hash, content: frame({type, body}) }));
   }
 }
 

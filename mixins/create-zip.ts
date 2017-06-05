@@ -1,125 +1,128 @@
 import sha1 from 'js-sha1';
 import modes from '../lib/modes.js';
 import JSZip from 'jszip';
-import { IRepo } from './repo';
 import { deflate, inflate } from 'pako';
 
 type Constructor<T> = new(...args: any[]) => T;
 
-export function createZipMixin<T extends Constructor<IRepo>>(Base: T) {
-  return class extends Base {
-    zip: JSZip;
+export class CreateZip {
+  zip: JSZip;
+  loadAs: (type, hash) => Promise<any>;
+  saveAs: (type, body) => Promise<string>;
+  readRef: (ref: string) => Promise<string>;
+  enumerateObjects: () => Promise<any[]>;
+  saveRaw: (hash, buffer) => Promise<string>;
+  updateRef: (ref, hash) => Promise<void>;
 
-    async createZip(...branchNames) {
-      if (branchNames.indexOf('master') == -1) {
-        if (await this.readRef('master')) {
-          branchNames.unshift('master');
-        }
+  async createZip(...branchNames) {
+    if (branchNames.indexOf('master') == -1) {
+      if (await this.readRef('master')) {
+        branchNames.unshift('master');
+      }
+    }
+
+    let zip = new JSZip();
+
+    let commits = await Promise.all(branchNames.map(async(name) => {
+      let hash = await this.readRef(name);
+      let commit = hash && await this.loadAs('commit', hash);
+      if (!commit) throw new Error('no branch with that name');
+      return Object.assign({ hash }, commit);
+    }));
+
+    let opts = { binary: true };
+
+    if(branchNames.length) {
+      // stage first in branchNames
+      let headBranchName = branchNames[0];
+      let commitHash = await this.readRef(headBranchName);
+      let commit = await this.loadAs('commit', commitHash);
+      let stagedFiles = await this.flattenTree(commit.tree);
+
+      for (let { value, path } of stagedFiles) {
+        zip.file(path.join('/'), value);
       }
 
-      let zip = new JSZip();
+      zip.file('.git/HEAD', `ref: refs/heads/${ headBranchName }\n`, opts);
+      zip.file('.git/index', createIndex(stagedFiles), opts);
 
-      let commits = await Promise.all(branchNames.map(async(name) => {
-        let hash = await this.readRef(name);
-        let commit = hash && await this.loadAs('commit', hash);
-        if (!commit) throw new Error('no branch with that name');
-        return Object.assign({ hash }, commit);
-      }));
-
-      let opts = { binary: true };
-
-      if(branchNames.length) {
-        // stage first in branchNames
-        let headBranchName = branchNames[0];
-        let commitHash = await this.readRef(headBranchName);
-        let commit = await this.loadAs('commit', commitHash);
-        let stagedFiles = await this.flattenTree(commit.tree);
-
-        for (let { value, path } of stagedFiles) {
-          zip.file(path.join('/'), value);
-        }
-
-        zip.file('.git/HEAD', `ref: refs/heads/${ headBranchName }\n`, opts);
-        zip.file('.git/index', createIndex(stagedFiles), opts);
-
-        for (let i=0; i < branchNames.length; i++) {
-          let name = branchNames[i];
-          let chash = commits[i].hash;
-          zip.file(`.git/refs/heads/${ name }`, chash + '\n', opts);
-        }
+      for (let i=0; i < branchNames.length; i++) {
+        let name = branchNames[i];
+        let chash = commits[i].hash;
+        zip.file(`.git/refs/heads/${ name }`, chash + '\n', opts);
       }
-
-      // save all objects by default TODO: use packing
-      let objects = await this.enumerateObjects();
-      for (let { hash, content } of objects) {
-        if (typeof content === 'string' || content instanceof Uint8Array) {
-          zip.file(['.git', 'objects', hash.substring(0, 2), hash.substring(2)].join('/'), deflate(content), opts);
-          continue;
-        }
-        throw new Error('content must be a string');
-      };
-
-      return this.zip = zip;
     }
 
-    async flattenTree(rootHash, prefix = []) {
-      let tree = await this.loadAs('tree', rootHash);
-      let result = [];
-      for (let name in tree) {
-        let { mode, hash } = tree[name];
-        if (mode === modes.tree) {
-          result.push(...await this.flattenTree(hash, prefix.concat(name)));
-        } else if (mode === modes.blob) {
-          let value = await this.loadAs('text', hash);
-          result.push({ path: prefix.concat(name), value });
-        }
+    // save all objects by default TODO: use packing
+    let objects = await this.enumerateObjects();
+    for (let { hash, content } of objects) {
+      if (typeof content === 'string' || content instanceof Uint8Array) {
+        zip.file(['.git', 'objects', hash.substring(0, 2), hash.substring(2)].join('/'), deflate(content), opts);
+        continue;
       }
-      return result;
-    }
+      throw new Error('content must be a string');
+    };
 
+    return this.zip = zip;
+  }
 
-
-    async loadZip(data, headOnly = false) {
-      let zip = this.zip;
-      await zip.loadAsync(data, { createFolders: true });
-      
-      if ('.git/' in zip.files) {
-        let git = zip.folder('.git');
-        let currentBranch = await git.file('HEAD').async('string');
-        let refs = git.folder('refs');
-
-        let tags =    refs.folder('tags');
-        let remotes = refs.folder('remotes');
-        let heads =   refs.folder('heads');
-
-        if (!currentBranch.startsWith('ref: ')) throw new Error('invalid HEAD');
-        let path = currentBranch.substring(5).trim(); // like 'refs/heads/master'
-        let branchNames = git.folder('refs').folder('heads')
-          .filter((_, { dir }) => !dir).map(({ name }) => name.split('/').slice(-1)[0]);
-        let headBranchName = (path.split('/').slice(-1)[0]).trim();
-        let commit = (await git.file(path).async('string')).trim();
-        // find those not yet saved
-        let hashes = git.folder('objects')
-          .filter((_, { dir }) => !dir)
-          .map(({ name }) => name.split('/').slice(-2).join(''));
-        let compressed = await Promise.all(hashes.map(hash => git
-          .folder('objects')
-          .file(hash.substring(0, 2) + '/' + hash.substring(2))
-          .async('arraybuffer')));
-        // save raw objects
-        await Promise.all(hashes.map((hash, i) => this.saveRaw(hash, inflate(compressed[i]))));
-        // branches
-        await Promise.all(branchNames.map(name => git.file('refs/heads/' + name).async('string').then(commit => this.updateRef(name, commit.trim()))));
+  async flattenTree(rootHash, prefix = []) {
+    let tree = await this.loadAs('tree', rootHash);
+    let result = [];
+    for (let name in tree) {
+      let { mode, hash } = tree[name];
+      if (mode === modes.tree) {
+        result.push(...await this.flattenTree(hash, prefix.concat(name)));
+      } else if (mode === modes.blob) {
+        let value = await this.loadAs('text', hash);
+        result.push({ path: prefix.concat(name), value });
       }
-      return;
     }
+    return result;
+  }
 
-    async addBranch(...branchNames) {
-    }
 
-    clear() {
-      this.zip = null;
+
+  async loadZip(data, headOnly = false) {
+    let zip = this.zip;
+    await zip.loadAsync(data, { createFolders: true });
+    
+    if ('.git/' in zip.files) {
+      let git = zip.folder('.git');
+      let currentBranch = await git.file('HEAD').async('string');
+      let refs = git.folder('refs');
+
+      let tags =    refs.folder('tags');
+      let remotes = refs.folder('remotes');
+      let heads =   refs.folder('heads');
+
+      if (!currentBranch.startsWith('ref: ')) throw new Error('invalid HEAD');
+      let path = currentBranch.substring(5).trim(); // like 'refs/heads/master'
+      let branchNames = git.folder('refs').folder('heads')
+        .filter((_, { dir }) => !dir).map(({ name }) => name.split('/').slice(-1)[0]);
+      let headBranchName = (path.split('/').slice(-1)[0]).trim();
+      let commit = (await git.file(path).async('string')).trim();
+      // find those not yet saved
+      let hashes = git.folder('objects')
+        .filter((_, { dir }) => !dir)
+        .map(({ name }) => name.split('/').slice(-2).join(''));
+      let compressed = await Promise.all(hashes.map(hash => git
+        .folder('objects')
+        .file(hash.substring(0, 2) + '/' + hash.substring(2))
+        .async('arraybuffer')));
+      // save raw objects
+      await Promise.all(hashes.map((hash, i) => this.saveRaw(hash, inflate(compressed[i]))));
+      // branches
+      await Promise.all(branchNames.map(name => git.file('refs/heads/' + name).async('string').then(commit => this.updateRef(name, commit.trim()))));
     }
+    return;
+  }
+
+  async addBranch(...branchNames) {
+  }
+
+  clear() {
+    this.zip = null;
   }
 }
 

@@ -1,7 +1,7 @@
 import sha1 from 'git-sha1';
 import { deflate } from 'pako';
 import modes from '../lib/modes';
-import { IRepo, memDBMixin, indexedDBMixin, formatsMixin, createTreeMixin, createZipMixin } from '../mixins';
+import { applyMixins, Repo, MemDB, IndexedDB, Formats, CreateTree, CreateZip } from '../mixins';
 
 interface TreeChanges {
   base?: string;
@@ -18,7 +18,7 @@ var EXAMPLE_TREE = {
   }
 };
 
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 10; i++) {
   EXAMPLE_TREE[`www/file${ i }.html`] = {
     mode: modes.file,
     content: `<h1>Hello</h1>\n<p>This is an file ${ i }?</p>\n`
@@ -34,29 +34,66 @@ var ADDED = {
 
 var dbName = 'test';
 
-class Repo implements IRepo {
-  saveAs;
-  loadAs;
-  saveRaw;
-  loadRaw;
-  readRef;
-  updateRef;
-  enumerateObjects;
-  constructor(public refPrefix: string) {}
+class MemRepo implements CreateZip, CreateTree, Formats, MemDB, Repo {
+  zip;
+  createZip: (...branchNames) => Promise<any>;
+  loadZip: (data, headOnly?) => Promise<void>;
+  addBranch: (...branchNames) => Promise<void>;
+  clear: () => void;
+  flattenTree: (rootHash, prefix) => Promise<any>;
+  objects = {};
+  refs = {};
+  refPrefix;
+  createTree: (entries) => Promise<any>;
+  loadAs: (type, hash) => Promise<any>;
+  saveAs: (type, body) => Promise<string>;
+  saveManyAs: (arr) => Promise<number>;
+  saveRaw: (hash, buffer) => Promise<string>;
+  saveManyRaw: (arr) => Promise<number>;
+  loadRaw: (hash) => Promise<any>;
+  hasHash: (hash) => Promise<boolean>;
+  listRefs: (prefix) => Promise<any>;
+  enumerateObjects: () => Promise<any[]>;
+  readRef: (ref) => Promise<string>;
+  updateRef: (ref, hash) => Promise<void>;
 }
-class MemRepo extends createZipMixin(createTreeMixin(formatsMixin(memDBMixin(Repo)))) {}
-class IDBRepo extends createZipMixin(createTreeMixin(formatsMixin(indexedDBMixin(Repo)))) {}
+applyMixins(MemRepo, [CreateZip, CreateTree, Formats, MemDB]);
+class IDBRepo implements CreateZip, CreateTree, Formats, IndexedDB, Repo {
+  zip;
+  createZip: (...branchNames) => Promise<any>;
+  loadZip: (data, headOnly) => Promise<any>;
+  addBranch: (...branchNames) => Promise<void>;
+  clear: () => void;
+  db;
+  refPrefix: string;
+  init: (name, version) => Promise<any>;
+  flattenTree: (rootHash, prefix) => Promise<any>;
+  createTree: (entries) => Promise<any>;
+  loadAs: (type, hash) => Promise<any>;
+  saveAs: (type, body) => Promise<string>;
+  saveManyAs: (arr) => Promise<string[]>;
+  saveRaw: (hash, buffer) => Promise<string>;
+  saveManyRaw: (arr) => Promise<number>;
+  loadRaw: (hash) => Promise<any>;
+  loadManyRaw: () => Promise<any>;
+  hasHash: (hash) => Promise<boolean>;
+  listRefs: (prefix) => Promise<any>;
+  enumerateObjects: () => Promise<any[]>;
+  readRef: (ref) => Promise<string>;
+  updateRef: (ref, hash) => Promise<void>;
+}
+applyMixins(IDBRepo, [CreateZip, CreateTree, Formats, IndexedDB]);
 
 describe('zip mixin', () => {
-  var repo1 = new IDBRepo('test-a');
-  var repo2 = new MemRepo('test-b');
+  var repo1 = new IDBRepo();
+  var repo2 = new MemRepo();
   var db;
   var blob;
 
   var treeHash;
 
   describe('archive', () => {
-    it('should create archive', async(done) => {
+    it('should create archive', test(async() => {
       db = await repo1.init('testt', 1);
       treeHash = await repo1.createTree(EXAMPLE_TREE);
       let tree = await repo1.loadAs('tree', treeHash);
@@ -102,11 +139,10 @@ describe('zip mixin', () => {
       window.document.body.appendChild(link);
       link.click();
       */
-      done();
 
-    });
+    }));
 
-    it('should read data from created archive into memory', async(done) => {
+    it('should read data from created archive into memory', test(async() => {
       await repo2.createTree(EXAMPLE_TREE);
       let zip = await repo2.createZip();
       await repo2.loadZip(blob);
@@ -125,22 +161,22 @@ describe('zip mixin', () => {
       for (let { path } of list) {
         expect(valid).toContain(path.join('/')); // 'Path missing in example tree.'
       };
+    }));
 
-      done();
-    });
-
-    xit('should retrieve and load zip file', async(done) => {
+    xit('should retrieve and load zip file', test(async() => {
       let path = '/base/test.zip';
       let request = new Request(path);
       let response = await fetch(request);
       let blob = await response.blob();
 
-      let repo = new MemRepo('tes');
+      let repo = new MemRepo();
       await repo.createZip();
       await repo.loadZip(blob);
-
-      console.log('repo', repo);
-      done();
-    });
+    }));
   });
 });
+function test(run) {
+  return (done) => {
+    run().then(done, e => { done.fail(e); done(); });
+  };
+}

@@ -1,41 +1,40 @@
+import { Repo } from './repo';
 import { fromUnicode, toUnicode } from 'bodec';
 import { treeMap } from '../lib/object-codec';
 
 type Constructor<T> = new(...args: any[]) => T;
 type validType = 'blob'|'tree'|'commit'|'tag';
-type extendedType = 'blob'|'tree'|'commit'|'tag'|'array'|'text';
+type extendedType = validType|'array'|'text';
 
-export interface IRepo {
-  saveAs(type: validType, body: any):      Promise<string>;
-  loadAs(type: validType, hash: string):   Promise<any>;
+class BaseRepo {
+  saveAs(...args): any {}
+  loadAs(...args): any {}
 }
 
-export function formatsMixin<T extends Constructor<IRepo>>(Base: T) {
-  return class extends Base {
-    async loadAs(type: extendedType, hash) {
-      let realType = <validType>(type === 'text' ? 'blob': type === 'array' ? 'tree' : type);
-      let body = await super.loadAs(realType, hash);
-      if (body === undefined) throw new TypeError('No object with that hash');
-      if (type === 'text') body = toUnicode(body);
-      if (type === 'array') body = toArray(body);
-      return body;
-    }
-
-    async saveAs(type: extendedType, body) {
-      type = type === "text" ? "blob":
-             type === "array" ? "tree" : type;
-      if (type === "blob" && typeof body === 'string') {
-        body = fromUnicode(body);
-      } else if (type === "tree") {
-        body = normalizeTree(body);
-      } else if (type === "commit") {
-        body = normalizeCommit(body);
-      } else if (type === "tag") {
-        body = normalizeTag(body);
-      }
-      return super.saveAs(type, body);
-    };
+export class Formats extends BaseRepo {
+  async loadAs(type: extendedType, hash) {
+    let realType = <validType>(type === 'text' ? 'blob': type === 'array' ? 'tree' : type);
+    let body = await super.loadAs(realType, hash);
+    if (body === undefined) throw new TypeError('No object with that hash');
+    if (type === 'text') body = toUnicode(body);
+    if (type === 'array') body = toArray(body);
+    return body;
   }
+
+  async saveAs(type: extendedType, body) {
+    type = type === "text" ? "blob":
+           type === "array" ? "tree" : type;
+    if (type === "blob" && typeof body === 'string') {
+      body = fromUnicode(body);
+    } else if (type === "tree") {
+      body = normalizeTree(body);
+    } else if (type === "commit") {
+      body = normalizeCommit(body);
+    } else if (type === "tag") {
+      body = normalizeTag(body);
+    }
+    return super.saveAs(type, body);
+  };
 }
 
 function toArray(tree) {

@@ -1,6 +1,13 @@
-export { formatsMixin } from './formats';
-export { createZipMixin } from './create-zip';
-export { createTreeMixin } from './create-tree';
-export { indexedDBMixin } from './indexed-db';
-export { memDBMixin } from './mem-db';
-export { Repo, IRepo } from './repo';
+export { Formats } from './formats';
+export { CreateZip } from './create-zip';
+export { CreateTree } from './create-tree';
+export { IndexedDB } from './indexed-db';
+export { MemDB } from './mem-db';
+export { Repo } from './repo';
+export function applyMixins(derivedCtor: any, baseCtors: any[]) {
+  baseCtors.forEach(baseCtor => {
+    Object.getOwnPropertyNames(baseCtor.prototype).forEach(name => {
+      derivedCtor.prototype[name] = baseCtor.prototype[name];
+    });
+  });
+}
