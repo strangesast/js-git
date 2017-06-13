@@ -1,6 +1,3 @@
-// Karma configuration
-// Generated on Mon Apr 03 2017 08:17:27 GMT-0400 (EDT)
-
 module.exports = function(config) {
   var configuration = {
 
@@ -16,8 +13,7 @@ module.exports = function(config) {
       require('karma-jasmine'),
       require('karma-typescript'),
       require('karma-chrome-launcher'),
-      require('karma-jasmine-html-reporter'),
-      require('karma-coverage')
+      require('karma-jasmine-html-reporter')
     ],
 
     client: {
@@ -26,10 +22,10 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'mixins/*.ts',
-      'lib/*.ts',
+      'src/mixins/*.ts',
+      'src/lib/*.ts',
       'test/*.spec.ts',
-      { pattern: 'test.zip', included: false, served: true, watched: false, nocache: true }
+      'test/util.ts'
     ],
 
 
@@ -54,7 +50,7 @@ module.exports = function(config) {
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress', 'karma-typescript', 'kjhtml', 'coverage'],
+    reporters: ['progress', 'karma-typescript', 'kjhtml'],
 
 
     // web server port
@@ -67,7 +63,7 @@ module.exports = function(config) {
 
     // level of logging
     // possible values: config.LOG_DISABLE || config.LOG_ERROR || config.LOG_WARN || config.LOG_INFO || config.LOG_DEBUG
-    logLevel: config.LOG_INFO,
+    logLevel: config.LOG_ERROR,
 
 
     // enable / disable watching file and executing tests whenever any file changes

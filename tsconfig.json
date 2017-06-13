@@ -8,13 +8,7 @@
       "jasmine", "dom"
     ]
   },
-  "include": [
-    "mixins/*.ts",
-    "test/*.spec.ts",
-    "lib/*.ts",
-    "typings.d.ts"
-  ],
   "exclude": [
-    "node_modules/"
+    "node_modules"
   ]
 }
