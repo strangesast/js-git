@@ -2,7 +2,7 @@
   "name": "js-git-2",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/main.js",
   "scripts": {
     "test": "karma start karma.conf.js"
   },
