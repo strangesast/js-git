@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
     "target": "es2016",
-    "module": "system",
+    "module": "commonjs",
     "moduleResolution": "node",
     "sourceMap": true,
     "lib": ["dom","es2015","es6","esnext.asynciterable"],
     "types": [
       "jasmine", "dom"
-    ],
-    "outFile": "dist/main.js"
+    ]
   },
   "include": [
     "src/**/*"
