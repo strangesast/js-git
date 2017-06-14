@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "target": "es2016",
     "moduleResolution": "node",
+    "module": "commonjs",
     "sourceMap": true,
-    "lib": ["es7", "dom"],
+    "lib": ["dom","es2015","esnext.asynciterable"],
     "types": [
       "jasmine", "dom"
     ]

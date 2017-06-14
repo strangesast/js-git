@@ -1,6 +1,26 @@
-import modes from './modes';
-export type validHash = string;
-export type validType = 'blob'|'tree'|'commit'|'tag';
+import { modes } from './modes';
+
+interface Person {
+  name: string;
+  email: string;
+  date: Date | { seconds: number, offset: number };
+}
+
+interface Commit {
+  tree: string;
+  parents: string[];
+  author: string
+  committer: string;
+  message: string;
+}
+
+interface Tag {
+  object: any;
+  type: string;
+  tag: string;
+  tagger: Person;
+  message: string
+}
 
 export const encoders = {
   blob: encodeBlob,
@@ -16,7 +36,7 @@ export const decoders = {
   tag: decodeTag
 };
 
-export function frame({ type, body }: { type: validType, body: Uint8Array }): Uint8Array {
+export function frame({ type, body }: { type: string, body: Uint8Array }): Uint8Array {
   let encoder = <any>encoders[type];
   body = encoder(body);
   let header = new TextEncoder().encode(`${ type } ${ body.length }\0`);
@@ -26,6 +46,21 @@ export function frame({ type, body }: { type: validType, body: Uint8Array }): Ui
   return result;
 }
 
+export function deframe(buffer, decode:boolean=true) {
+  var space = buffer.indexOf(0x20);
+  if (space < 0) throw new Error('Invalid git object buffer');
+  var nil = buffer.indexOf(0x00, space);
+  if (nil < 0) throw new Error('Invalid git object buffer');
+  var body = buffer.slice(nil + 1);
+  var size = parseDec(buffer, space + 1, nil);
+  if (size !== body.length) throw new Error('Invalid body length.');
+  var type = new TextDecoder().decode(buffer.slice(0, space));
+  return {
+    type,
+    body: decode ? decoders[type](body) : body
+  };
+}
+
 export function validateBody(body) {
   if (typeof body === 'string' || body instanceof Uint8Array) {
     return;
@@ -33,31 +68,28 @@ export function validateBody(body) {
   throw new Error('invalid body type');
 }
 
-function encodeBlob(body) {
-  if (body instanceof Uint8Array) {
-    return body;
+function encodeBlob(body: Uint8Array) {
+  if (!(typeof body === 'string' || body instanceof Uint8Array)) {
+    throw new Error('blobs must be binary values');
   }
-  throw new Error('blobs must be binary values');
+  return body;
 }
 
-function treeMap(key) {
+export function treeMap(key) {
   let entry = this[key];
-  return {
-    name: key,
-    mode: entry.mode,
-    hash: entry.hash
-  };
+  let { mode, hash } = entry;
+  return { name: key, mode, hash };
 }
 
 function treeSort(a, b) {
-  let aa = (a.mode === modes.tree) ? a.name + "/" : a.name;
-  let bb = (b.mode === modes.tree) ? b.name + "/" : b.name;
+  let aa = (a.mode === modes.tree) ? a.name + '/' : a.name;
+  let bb = (b.mode === modes.tree) ? b.name + '/' : b.name;
   return aa > bb ? 1 : aa < bb ? -1 : 0;
 }
 
 function encodeTree(body) {
   if (Array.isArray(body)) {
-    throw new TypeError("Tree must be in object form");
+    throw new TypeError('Tree must be in object form');
   }
   let list = Object.keys(body).map(treeMap, body).sort(treeSort);
   let tree = list.map(({ mode, name, hash }) => `${ mode.toString(8) } ${ name }\0${hash}`).join('');
@@ -65,11 +97,11 @@ function encodeTree(body) {
 }
 
 function safe(string) {
-  return string.replace(/(?:^[\.,:;<>"']+|[\0\n<>]+|[\.,:;<>"']+$)/gm, "");
+  return string.replace(/(?:^[\.,:;<>'']+|[\0\n<>]+|[\.,:;<>'']+$)/gm, '');
 }
 
 function two(num) {
-    return (num < 10 ? "0" : "") + num;
+  return ('0' + num).slice(-2);
 }
 
 function formatDate(date) {
@@ -81,37 +113,45 @@ function formatDate(date) {
       seconds = Math.floor(date.getTime() / 1000);
       offset = date.getTimezoneOffset();
   }
-  var neg = "+";
+  var neg = '+';
   if (offset <= 0) {
     offset = -offset;
   } else {
-    neg = "-";
+    neg = '-';
   }
   offset = neg + two(Math.floor(offset / 60)) + two(offset % 60);
-  return seconds + " " + offset;
+  return seconds + ' ' + offset;
 }
 
 function formatPerson(person) {
+  let { name, email, date } = person;
+  if (typeof name !== 'string') {
+    throw new TypeError('invalid name in person');
+  }
+  if (typeof email !== 'string') {
+    throw new TypeError('invalid email in person');
+  }
+  if (!date) {
+    throw new TypeError('invalid date in person');
+  }
   return `${ safe(person.name) } <${ safe(person.email) }> ${ formatDate(person.date) }`;
 }
 
 function encodeCommit(body) {
   let { tree, parents, author, committer, message } = body;
-  var str = "tree " + tree;
-  for (let p of parents) {
-      str += "\nparent " + p;
+  parents = parents || [];
+  var str = 'tree ' + tree;
+  if (!Array.isArray(parents)) {
+    throw TypeError('invalid parents type');
   }
-  str += "\nauthor " + formatPerson(body.author) + "\ncommitter " + formatPerson(body.committer) + "\n\n" + body.message;
+  for (let p of parents) {
+      str += '\nparent ' + p;
+  }
+  str += '\nauthor ' + formatPerson(body.author) + '\ncommitter ' + formatPerson(body.committer) + '\n\n' + body.message;
   return new TextEncoder().encode(str);
 }
 
-interface Person {
-  name: string;
-  email: string;
-  date: Date | { seconds: number, offset: number };
-}
-
-function encodeTag({ object, type, tag, tagger, message }: { object: any, type: validType, tag: validHash, tagger: Person, message: string }) {
+function encodeTag({ object, type, tag, tagger, message }: Tag) {
   var str = `object ${ object }\ntype ${ type }\ntag ${ tag }\ntagger ${ formatPerson(tagger) }\n\n${ message }`;
   return new TextEncoder().encode(str);
 }
@@ -132,8 +172,9 @@ function decodeTree(body) {
   while (i < length) {
     start = i;
     i = body.indexOf(0x20, start);
-    if (i < 0) throw new SyntaxError("Missing space");
-    mode = parseOct(body, start, i++); start = i;
+    if (i < 0) throw new SyntaxError('Missing space');
+    mode = parseOct(body, start, i++);
+    start = i;
     i = body.indexOf(0x00, start);
     name = decoder.decode(body.slice(start, i++));
     hash = body.slice(i, i+=20).map(i => ('0' + i.toString(16)).slice(-2)).join('');
@@ -142,47 +183,38 @@ function decodeTree(body) {
   return tree;
 }
 
-interface Commit {
-  tree: validHash;
-  parents: validHash[];
-  author: string
-  committer: string;
-  message: string;
-}
-
 function decodeCommit(body) {
   let i = 0,
       start,
       key,
       parents = [],
       commit: Commit = {
-        tree: "",
+        tree: '',
         parents: parents,
-        author: "",
-        committer: "",
-        message: ""
+        author: '',
+        committer: '',
+        message: ''
       },
       decoder = new TextDecoder();
 
   while (body[i] !== 0x0a) {
     start = i;
     i = body.indexOf(0x20, start);
-    if (i < 0) throw new SyntaxError("Missing space");
+    if (i < 0) throw new SyntaxError('Missing space');
     key = decoder.decode(body.slice(start, i++));
     start = i;
     i = body.indexOf(0x0a, start);
-    if (i < 0) throw new SyntaxError("Missing linefeed");
+    if (i < 0) throw new SyntaxError('Missing linefeed');
     let value: Person | string = decoder.decode(body.slice(start, i++));
-    if (key === "parent") {
+    if (key === 'parent') {
       parents.push(value);
     } else {
-      if (key === "author" || key === "committer") { 
+      if (key === 'author' || key === 'committer') { 
         value = decodePerson(value);
       }
       commit[key] = value;
     }
   }
-
   i++;
   commit.message = decoder.decode(body.slice(i, body.length));
   return commit;
@@ -197,13 +229,13 @@ function decodeTag(body) {
   while (body[i] !== 0x0a) {
     start = i;
     i = body.indexOf(0x20, start);
-    if (i < 0) throw new SyntaxError("Missing space");
+    if (i < 0) throw new SyntaxError('Missing space');
     key = decoder.decode(body.slice(start, i++));
     start = i;
     i = body.indexOf(0x0a, start);
-    if (i < 0) throw new SyntaxError("Missing linefeed");
+    if (i < 0) throw new SyntaxError('Missing linefeed');
     let value: any = decoder.decode(body.slice(start, i++));
-    if (key === "tagger") value = decodePerson(value);
+    if (key === 'tagger') value = decodePerson(value);
     tag[key] = value;
   }
   i++;
@@ -213,7 +245,7 @@ function decodeTag(body) {
 
 function decodePerson(string): Person {
   var match = string.match(/^([^<]*) <([^>]*)> ([^ ]*) (.*)$/);
-  if (!match) throw new Error("Improperly formatted person string");
+  if (!match) throw new Error('Improperly formatted person string');
   return {
     name: match[1],
     email: match[2],
@@ -228,6 +260,14 @@ function parseOct(buffer, start, end) {
   var val = 0;
   while (start < end) {
       val = (val << 3) + buffer[start++] - 0x30;
+  }
+  return val;
+}
+
+function parseDec(buffer, start, end) {
+  var val = 0;
+  while (start < end) {
+    val = val * 10 + buffer[start++] - 0x30;
   }
   return val;
 }

@@ -1,25 +1,14 @@
-import { applyMixins } from '../lib/util';
-import { frame, validType, validHash, validateBody } from '../lib/object-codec';
+import { Repo, ObjectRecord } from './repo';
+import { frame } from '../lib/object-codec';
 import { Observable } from 'rxjs';
 import * as sha1 from 'js-sha1';
 
-type ObjectRecord = { type?: string, body: any, hash: validHash }; 
-
-interface Repo {
-  saveAs(type: validType, body: Uint8Array | string): Observable<validHash> | Promise<validHash> | validHash;
-  saveRaw(hash: validHash, body: Uint8Array | string): Observable<validHash> | Promise<validHash> | validHash;
-  loadAs(type: validType, hash: validHash): Observable<any> | Promise<any> | any;
-  loadRaw(hash: validHash): Observable<any> | Promise<any> | any;
-  readRef(ref: string): Observable<validHash> | Promise<validHash> | validHash;
-  updateRef(ref: string, hash: validHash): Observable<void> | Promise<void> | void;
-}
-
 export class IndexedDB implements Repo {
-  db: IDBDatabase;
+  public db: IDBDatabase;
 
   constructor(public refPrefix: string) {}
 
-  async init(name: string, version?: number): Promise<void> {
+  async init(name: string, version?: number, callback?): Promise<void> {
     this.db = <IDBDatabase>(await new Promise((resolve, reject) => {
       let request = indexedDB.open(name, version);
 
@@ -31,10 +20,10 @@ export class IndexedDB implements Repo {
         };
     
         let storeNames = [].slice.call(db.objectStoreNames);
-        if (storeNames.indexOf('objects') != -1) {
+        if (storeNames.indexOf('objects') > -1) {
           db.deleteObjectStore('objects');
         }
-        if (storeNames.indexOf('refs') != -1) {
+        if (storeNames.indexOf('refs') > -1) {
           db.deleteObjectStore('refs');
         }
     
@@ -46,9 +35,10 @@ export class IndexedDB implements Repo {
       request.onsuccess = (evt: any) => resolve(request.result);
       request.onerror = (evt: any) => reject(evt.target.error);
     }));
+    if (callback) callback(this.db);
   }
 
-  async reset(): Promise<void> {
+  async reset(callback?): Promise<void> {
     if (!this.db) {
       throw new Error('not initialized');
     }
@@ -57,56 +47,71 @@ export class IndexedDB implements Repo {
     transaction.objectStore('objects').clear();
     transaction.objectStore('refs').clear();
     await complete;
+    if (callback) callback();
     return;
   }
 
-  async saveAs(type: validType, body: Uint8Array | string): Promise<validHash> {
-    validateBody(body);
+  async saveAs(type: string, body: any, callback?, forcedHash?): Promise<string> {
     let transaction = this.db.transaction(['objects'], 'readwrite');
-    let encodedBody = typeof body == 'string' ? new TextEncoder('utf-8').encode(body) : body;
+    let encodedBody: any = body;
+    if (type === 'blob') {
+      if (typeof encodedBody !== 'string') {
+        encodedBody = JSON.stringify(encodedBody);
+      }
+      if (!(encodedBody instanceof Uint8Array)) {
+        encodedBody = new TextEncoder().encode(encodedBody);
+      }
+    }
     let buffer = frame({ type, body: encodedBody });
-    let hash = sha1(buffer);
+    let hash = forcedHash || sha1(buffer);
     let request = transaction.objectStore('objects').put({ hash, type, body });
-
     await new Promise((r) => request.onsuccess = () => r(request.result));
+    if (callback) callback(hash);
     return hash;
   }
 
-  async saveRaw(hash: validHash, body: Uint8Array | string): Promise<validHash> {
-    validateBody(body);
-    let transaction = this.db.transaction(['objects'], 'readwrite');
-    let request = transaction.objectStore('objects').put({ hash, body });
-    await new Promise((r) => request.onsuccess = () => r(request.result));
-    return hash;
-  }
-
-  async loadAs(type: validType, hash: validHash): Promise<any> {
+  async loadAs(type: string, hash: string, callback?): Promise<any> {
     let transaction = this.db.transaction(['objects']);
     let request = transaction.objectStore('objects').get(hash);
     let result = <ObjectRecord>(await new Promise((r) => request.onsuccess = () => r(<ObjectRecord>request.result)));
     if (result.type === type) {
-      return result;
+      if (callback) callback(result.body);
+      return result.body;
     }
     throw new TypeError('invalid type requested');
   }
 
-  async loadRaw(hash: validHash): Promise<any> {
+  async loadRaw(hash: string, callback?): Promise<any> {
     let transaction = this.db.transaction(['objects']);
     let request = transaction.objectStore('objects').get(hash);
     let result = await new Promise((r) => request.onsuccess = () => r(request.result));
+    if (callback) callback(result);
     return result;
   }
 
-  async readRef(ref: string): Promise<validHash> {
+  async readRef(ref: string, callback?): Promise<string> {
     let path = this.refPrefix + '/' + ref;
     let transaction = this.db.transaction(['refs']);
     let request = transaction.objectStore('refs').get(path);
-    let result = <validHash>(await new Promise((r) => request.onsuccess = () => r(request.result)));
+    let result = <string>(await new Promise((r) => request.onsuccess = () => r(request.result)));
+    if (callback) callback(result);
     return result;
   }
 
-  async updateRef(ref: string, hash: validHash): Promise<void> {
-
+  async updateRef(ref: string, hash: string, callback?): Promise<void> {
+    let path = this.refPrefix + '/' + ref;
+    let transaction = this.db.transaction(['refs'], 'readwrite');
+    let request = transaction.objectStore('refs').put({ path, hash });
+    let result = <string>(await new Promise((r) => request.onsuccess = () => r(request.result)));
+    if (callback) callback();
+    return;
   }
 
+  async listRefs(prefix=this.refPrefix, callback?): Promise<string[]> {
+    let transaction = this.db.transaction(['refs']);
+    let request = transaction.objectStore('refs').getAll();
+    let result = <string[]>(await new Promise((r) => request.onsuccess = () => r(request.result)));
+    if (callback) callback();
+    return result;
+  }
 }

@@ -19,7 +19,7 @@ function toType (mode): string {
   return "unknown";
 }
 
-const modes = {
+export const modes = {
   isBlob,
   isFile,
   toType,
@@ -30,5 +30,3 @@ const modes = {
   sym:    parseInt('120000', 8),
   commit: parseInt('160000', 8)
 };
-
-export default modes;
