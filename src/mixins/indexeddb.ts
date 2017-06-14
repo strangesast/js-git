@@ -53,21 +53,36 @@ export class IndexedDB implements Repo {
 
   async saveAs(type: string, body: any, callback?, forcedHash?): Promise<string> {
     let transaction = this.db.transaction(['objects'], 'readwrite');
-    let encodedBody: any = body;
-    if (type === 'blob') {
-      if (typeof encodedBody !== 'string') {
-        encodedBody = JSON.stringify(encodedBody);
-      }
-      if (!(encodedBody instanceof Uint8Array)) {
-        encodedBody = new TextEncoder().encode(encodedBody);
-      }
-    }
+    let encodedBody = encodeBody(type, body);
     let buffer = frame({ type, body: encodedBody });
     let hash = forcedHash || sha1(buffer);
     let request = transaction.objectStore('objects').put({ hash, type, body });
     await new Promise((r) => request.onsuccess = () => r(request.result));
     if (callback) callback(hash);
     return hash;
+  }
+
+  async saveMany(objects: { type: string, body: any }[], callback?): Promise<string[]> {
+    let transaction = this.db.transaction(['objects'], 'readwrite');
+    let store = transaction.objectStore('objects');
+    let items = objects.map(({ type, body }) => {
+      let encodedBody = encodeBody(type, body);
+      let buffer = frame({ type, body: encodedBody });
+      let hash = sha1(buffer);
+      return { type, hash, body };
+    });
+    let result = <string[]>(await new Promise((resolve, reject) => {
+      let i = 0;
+      next();
+      function next() {
+        if (i < items.length) {
+          store.put(items[i++]).onsuccess = next;
+        } else {
+          resolve(items.map(({ hash }) => hash));
+        }
+      }
+    }));
+    return result;
   }
 
   async loadAs(type: string, hash: string, callback?): Promise<any> {
@@ -85,6 +100,36 @@ export class IndexedDB implements Repo {
     let transaction = this.db.transaction(['objects']);
     let request = transaction.objectStore('objects').get(hash);
     let result = await new Promise((r) => request.onsuccess = () => r(request.result));
+    if (callback) callback(result);
+    return result;
+  }
+
+  async loadMany(hashes: string[], callback?): Promise<any> {
+    let transaction = this.db.transaction(['objects']);
+    hashes.sort(comparer);
+    let result = await new Promise((resolve, reject) => {
+      let i = 0;
+      let request = transaction.objectStore('objects').openCursor();
+      let result = [];
+      request.onsuccess = (e) => {
+        let cursor = request.result;
+        if (!cursor) return resolve(result);
+        let key = cursor.key;
+        while (key > hashes[i]) {
+          ++i
+          if (i === hashes.length) {
+            return resolve(result);
+          }
+        }
+        if (key === hashes[i]) {
+          result.push(cursor.value);
+          cursor.continue();
+        } else {
+          cursor.continue(hashes[i]);
+        }
+      };
+      request.onerror = (e) => reject(e);
+    });
     if (callback) callback(result);
     return result;
   }
@@ -114,4 +159,21 @@ export class IndexedDB implements Repo {
     if (callback) callback();
     return result;
   }
+}
+
+function encodeBody(type, body) {
+  let encodedBody = body;
+  if (type === 'blob') {
+    if (typeof encodedBody !== 'string') {
+      encodedBody = JSON.stringify(encodedBody);
+    }
+    if (!(encodedBody instanceof Uint8Array)) {
+      encodedBody = new TextEncoder().encode(encodedBody);
+    }
+  }
+  return encodedBody;
+}
+
+function comparer (a, b) {
+  return a < b? -1 : a > b ? 1 : 0;
 }

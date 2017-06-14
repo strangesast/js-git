@@ -24,6 +24,14 @@ export class MemDB implements Repo {
     return;
   }
 
+  async saveMany(objects: { type: string, body: any}[], callback?): Promise<string[]> {
+    let hashes = [];
+    for (let { type, body } of objects) {
+      hashes.push(await this.saveAs(type, body));
+    }
+    return hashes;
+  }
+
   async loadAs(type: string, hash: string, callback?): Promise<any> {
     let buffer = this.objects[hash];
     if (!buffer) {
@@ -41,6 +49,16 @@ export class MemDB implements Repo {
     let buffer = this.objects[hash];
     if (callback) callback(null, buffer);
     return buffer;
+  }
+
+  async loadMany(hashes: string[], callback?) {
+    let result = [];
+    for (let hash in this.objects) {
+      if (hashes.indexOf(hash) > -1) {
+        result.push(deframe(this.objects[hash]));
+      }
+    }
+    return result;
   }
 
   async readRef(ref: string, callback?): Promise<string> {
