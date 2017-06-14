@@ -1070,26 +1070,24 @@ System.register("mixins/index", ["mixins/indexeddb", "mixins/memdb", "mixins/for
 System.register("main", ["mixins/index", "lib/index"], function (exports_12, context_12) {
     "use strict";
     var __moduleName = context_12 && context_12.id;
-    var mixins_1, lib_3, JSGit;
     return {
         setters: [
             function (mixins_1_1) {
-                mixins_1 = mixins_1_1;
+                exports_12({
+                    "MemDB": mixins_1_1["MemDB"],
+                    "IndexedDB": mixins_1_1["IndexedDB"],
+                    "Formats": mixins_1_1["Formats"],
+                    "CreateTree": mixins_1_1["CreateTree"],
+                    "Walkers": mixins_1_1["Walkers"]
+                });
             },
             function (lib_3_1) {
-                lib_3 = lib_3_1;
+                exports_12({
+                    "modes": lib_3_1["modes"]
+                });
             }
         ],
         execute: function () {
-            (function (JSGit) {
-                lib_3.modes;
-                mixins_1.MemDB;
-                mixins_1.IndexedDB;
-                mixins_1.Formats;
-                mixins_1.CreateTree;
-                mixins_1.Walkers;
-            })(JSGit || (JSGit = {}));
-            exports_12("JSGit", JSGit);
         }
     };
 });
