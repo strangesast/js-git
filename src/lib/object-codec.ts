@@ -36,7 +36,7 @@ export const decoders = {
   tag: decodeTag
 };
 
-export function frame({ type, body }: { type: string, body: Uint8Array }): Uint8Array {
+export function frame({ type, body }: { type: string, body: any }): Uint8Array {
   let encoder = <any>encoders[type];
   body = encoder(body);
   let header = new TextEncoder().encode(`${ type } ${ body.length }\0`);
@@ -87,12 +87,14 @@ function treeSort(a, b) {
   return aa > bb ? 1 : aa < bb ? -1 : 0;
 }
 
-function encodeTree(body) {
+function encodeTree(body: { [key: string]: { mode: number, hash: string }}) {
   if (Array.isArray(body)) {
     throw new TypeError('Tree must be in object form');
   }
   let list = Object.keys(body).map(treeMap, body).sort(treeSort);
-  let tree = list.map(({ mode, name, hash }) => `${ mode.toString(8) } ${ name }\0${hash}`).join('');
+  let encoder = new TextEncoder();
+  console.log('list', list);
+  let tree = list.map(({ mode, name, hash }) => mode.toString(8) + ' ' + encodeURI(name) + '\0' + hash).join('');
   return new TextEncoder().encode(tree);
 }
 

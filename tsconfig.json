@@ -5,12 +5,11 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "lib": ["dom","es2015","es6","esnext.asynciterable"],
-    "types": [
-      "jasmine", "dom"
-    ]
+    "types": [ "jasmine" ]
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "test/**/*"
   ],
   "exclude": [
     "node_modules"

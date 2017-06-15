@@ -1,6 +1,5 @@
 import { Repo, ObjectRecord } from './repo';
 import { frame } from '../lib/object-codec';
-import { Observable } from 'rxjs';
 import * as sha1 from 'js-sha1';
 
 export class IndexedDB implements Repo {
@@ -15,8 +14,8 @@ export class IndexedDB implements Repo {
       request.onupgradeneeded = (evt: any) => {
         let db = <IDBDatabase>request.result;
     
-        evt.target.transaction.onerror = (evt) => {
-          reject(evt.target.error);
+        request.transaction.onerror = (evt) => {
+          reject(request.transaction.error);
         };
     
         let storeNames = [].slice.call(db.objectStoreNames);
@@ -29,7 +28,10 @@ export class IndexedDB implements Repo {
     
         let objectsObjectStore = db.createObjectStore('objects', { keyPath: 'hash' });
         let keysObjectStore = db.createObjectStore('refs',       { keyPath: 'path' });
-        resolve(db);
+
+        request.transaction.oncomplete = (evt) => {
+          resolve(db);
+        };
       };
     
       request.onsuccess = (evt: any) => resolve(request.result);
@@ -56,7 +58,7 @@ export class IndexedDB implements Repo {
     let encodedBody = encodeBody(type, body);
     let buffer = frame({ type, body: encodedBody });
     let hash = forcedHash || sha1(buffer);
-    let request = transaction.objectStore('objects').put({ hash, type, body });
+    let request = transaction.objectStore('objects').put({ hash, type, body, buffer });
     await new Promise((r) => request.onsuccess = () => r(request.result));
     if (callback) callback(hash);
     return hash;
@@ -69,7 +71,7 @@ export class IndexedDB implements Repo {
       let encodedBody = encodeBody(type, body);
       let buffer = frame({ type, body: encodedBody });
       let hash = sha1(buffer);
-      return { type, hash, body };
+      return { type, hash, body, buffer };
     });
     let result = <string[]>(await new Promise((resolve, reject) => {
       let i = 0;

@@ -41,7 +41,8 @@ describe('objects', () => {
       let blobHash = await repo.saveAs('blob', object);
       let tree = {'test.json': { mode: modes.tree, hash: blobHash }};
       let treeHash = await repo.saveAs('tree', tree);
-      expect(await repo.loadRaw(treeHash)).toEqual({ body: tree, hash: treeHash, type: 'tree' });
+      let encoder = new TextEncoder();
+      expect(await repo.loadRaw(treeHash)).toEqual({ body: tree, hash: treeHash, type: 'tree', buffer: frame({ type: 'tree', body: tree }) });
     }));
     it('should save commit', test(async() => {
       let blobHash = await repo.saveAs('blob', object);
@@ -91,7 +92,7 @@ describe('objects', () => {
       let hash = await repo.saveAs('blob', object);
       let record = await repo.loadRaw(hash);
 
-      expect(record).toEqual({ hash, type: 'blob', body: object });
+      expect(record).toEqual({ hash, type: 'blob', body: object, buffer: frame({ type: 'blob', body: new TextEncoder().encode(JSON.stringify(object)) }) });
     }));
   });
 });
