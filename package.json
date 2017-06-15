@@ -1,6 +1,6 @@
 {
-  "name": "js-git-2",
-  "version": "1.0.0",
+  "name": "js-git",
+  "version": "0.0.1",
   "description": "",
   "main": "dist/main.js",
   "scripts": {
