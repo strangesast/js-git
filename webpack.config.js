@@ -4,7 +4,7 @@ module.exports = {
     filename: 'dist/main.js'
   },
   resolve: {
-    extensions: ['.ts']
+    extensions: ['.ts', '.js']
   },
   module: {
     loaders: [

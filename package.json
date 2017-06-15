@@ -10,8 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "core-js": "^2.4.1",
-    "js-sha1": "^0.4.1",
-    "rxjs": "^5.4.0"
+    "js-sha1": "^0.4.1"
   },
   "devDependencies": {
     "@types/jasmine": "^2.5.52",
